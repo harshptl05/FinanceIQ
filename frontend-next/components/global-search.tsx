@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownToLine,
+  ChartLine,
   Loader2,
   Search,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { TickerLogo } from '@/components/ticker-logo';
-import { TradeDialog } from '@/components/trade-dialog';
+import { TickerPreviewDialog } from '@/components/ticker-preview-dialog';
 import { api, type Holding, type SearchResult } from '@/lib/api';
 import { fmtMoney, fmtPct, assetLabel, assetColor } from '@/lib/format';
 
@@ -57,7 +56,10 @@ export function GlobalSearch({
   const inputRef = useRef<HTMLInputElement>(null);
   const reqIdRef = useRef(0);
 
-  const [tradePick, setTradePick] = useState<SearchResult | null>(null);
+  // The result the user clicked — drives the preview dialog. The preview
+  // dialog itself owns the Buy/Sell flow via TradeDialog, so we no longer
+  // open TradeDialog from here directly.
+  const [previewPick, setPreviewPick] = useState<SearchResult | null>(null);
 
   // Owned tickers map for quick lookup
   const ownedByTicker = useMemo(() => {
@@ -108,25 +110,11 @@ export function GlobalSearch({
     return () => window.clearTimeout(timer);
   }, [query, open]);
 
-  const handlePick = async (r: SearchResult) => {
-    // Hydrate the price if the search hit didn't include one (only the top
-    // result has a live quote inline). Falls back gracefully on rate-limit.
-    if (r.current_price && r.current_price > 0) {
-      setTradePick(r);
-      return;
-    }
-    try {
-      const full = await api.search.quote(r.ticker);
-      setTradePick(full);
-    } catch {
-      // Even with no price we let the user open the trade dialog — they
-      // can still confirm based on the displayed name and the dialog will
-      // surface a "price unavailable" error on submit.
-      toast.warning(`Couldn't fetch a live price for ${r.ticker}`, {
-        description: 'Yahoo may be rate-limiting — try again in a minute.',
-      });
-      setTradePick(r);
-    }
+  const handlePick = (r: SearchResult) => {
+    // Open the preview immediately — the preview dialog itself lazy-loads
+    // the full quote when needed, so the user gets instant feedback on
+    // click instead of waiting on a network round-trip.
+    setPreviewPick(r);
   };
 
   return (
@@ -274,7 +262,7 @@ export function GlobalSearch({
                             </p>
                           ) : (
                             <p className="text-[11px] text-gray-400 flex items-center justify-end gap-0.5">
-                              <ArrowDownToLine className="w-3 h-3" /> trade
+                              <ChartLine className="w-3 h-3" /> view
                             </p>
                           )}
                         </div>
@@ -288,26 +276,23 @@ export function GlobalSearch({
         </DialogContent>
       </Dialog>
 
-      {tradePick && (
-        <TradeDialog
-          open={!!tradePick}
-          onOpenChange={(o) => !o && setTradePick(null)}
-          ticker={tradePick.ticker}
-          name={tradePick.name}
-          apiPrice={Number(tradePick.current_price ?? 0)}
-          assetClass={tradePick.asset_class}
-          ownedShares={Number(
-            ownedByTicker.get(tradePick.ticker.toUpperCase())?.shares ?? 0,
-          )}
-          defaultAction="buy"
-          color={assetColor(tradePick.asset_class)}
-          onTraded={() => {
-            setTradePick(null);
-            onOpenChange(false);
-            onTraded?.();
-          }}
-        />
-      )}
+      {/* Preview dialog: shows the live chart + Buy/Sell. Closing it leaves
+          the search palette open so the user can keep exploring. */}
+      <TickerPreviewDialog
+        open={!!previewPick}
+        onOpenChange={(o) => !o && setPreviewPick(null)}
+        result={previewPick}
+        ownedHolding={
+          previewPick
+            ? ownedByTicker.get(previewPick.ticker.toUpperCase()) ?? null
+            : null
+        }
+        onTraded={() => {
+          setPreviewPick(null);
+          onOpenChange(false);
+          onTraded?.();
+        }}
+      />
     </>
   );
 }

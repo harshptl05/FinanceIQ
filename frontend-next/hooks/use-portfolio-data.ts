@@ -104,12 +104,20 @@ export function usePortfolioData(): PortfolioData {
   // prices through holdings so current_value, summary.total_value, P&L,
   // and allocation %s all refresh in sync with the chart. When no live
   // ticks have arrived for a ticker yet, we leave the API price intact.
-  const { prices: livePrices, isLive } = useLivePrices();
+  const { prices: livePrices, isLive, pruneToTickers } = useLivePrices();
+
+  useEffect(() => {
+    pruneToTickers(holdings.map((h) => h.ticker));
+  }, [holdings, pruneToTickers]);
 
   const overlaidHoldings = useMemo<Holding[]>(() => {
     if (!isLive || Object.keys(livePrices).length === 0) return holdings;
     return holdings.map((h) => {
-      const live = livePrices[h.ticker];
+      const t = h.ticker;
+      const live =
+        livePrices[t] ??
+        livePrices[t.toUpperCase()] ??
+        livePrices[t.toLowerCase()];
       if (!live || !h.shares) return h;
       const shares = Number(h.shares);
       return {

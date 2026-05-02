@@ -36,6 +36,8 @@ type LivePricesContextValue = {
    *  `resetBase(ticker)` clears it so the next tick becomes a new anchor. */
   basePrices: LivePrices;
   setPrice: (ticker: string, price: number) => void;
+  /** Remove tickers you no longer hold so P&L / movers don't reuse ghost prices. */
+  pruneToTickers: (tickers: string[]) => void;
   /** Drop the captured base for a ticker. Call when a chart remounts for
    *  the same ticker so "since open" restarts from the new first tick. */
   resetBase: (ticker: string) => void;
@@ -52,6 +54,7 @@ const NOOP_VALUE: LivePricesContextValue = {
   prices: {},
   basePrices: {},
   setPrice: () => {},
+  pruneToTickers: () => {},
   resetBase: () => {},
   isLive: false,
   setIsLive: () => {},
@@ -95,17 +98,44 @@ export function LivePricesProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const pruneToTickers = useCallback((tickers: string[]) => {
+    const allowed = new Set(tickers.map((t) => t.toUpperCase()));
+    setPrices((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const k of Object.keys(next)) {
+        if (!allowed.has(k.toUpperCase())) {
+          delete next[k];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    setBasePrices((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const k of Object.keys(next)) {
+        if (!allowed.has(k.toUpperCase())) {
+          delete next[k];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       prices,
       basePrices,
       setPrice,
+      pruneToTickers,
       resetBase,
       isLive,
       setIsLive,
       lastTickAt,
     }),
-    [prices, basePrices, setPrice, resetBase, isLive, lastTickAt],
+    [prices, basePrices, setPrice, pruneToTickers, resetBase, isLive, lastTickAt],
   );
 
   return (

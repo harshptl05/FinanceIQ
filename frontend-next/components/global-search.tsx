@@ -27,7 +27,7 @@ type Props = {
    *  modal with current share counts (so buy adds to position, sell works). */
   holdings: Holding[];
   /** Called after a successful trade so the parent can refresh portfolio data. */
-  onTraded?: () => void;
+  onTraded?: () => void | Promise<void>;
 };
 
 /**
@@ -333,10 +333,10 @@ export function GlobalSearch({
             ? ownedByTicker.get(previewPick.ticker.toUpperCase()) ?? null
             : null
         }
-        onTraded={() => {
+        onTraded={async () => {
           setPreviewPick(null);
           onOpenChange(false);
-          onTraded?.();
+          await Promise.resolve(onTraded?.());
         }}
       />
     </>

@@ -53,7 +53,7 @@ type Props = {
   /** Owned shares for this ticker (0 if discovery flow). */
   ownedHolding?: Holding | null;
   /** Called after a successful trade. */
-  onTraded?: () => void;
+  onTraded?: () => void | Promise<void>;
 };
 
 /**
@@ -466,10 +466,9 @@ export function TickerPreviewDialog({
           ownedShares={ownedShares}
           defaultAction={tradeAction}
           color={color}
-          onTraded={() => {
+          onTraded={async () => {
             setTradeAction(null);
-            onOpenChange(false);
-            onTraded?.();
+            await Promise.resolve(onTraded?.());
           }}
         />
       )}

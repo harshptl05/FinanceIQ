@@ -51,7 +51,7 @@ type Props = {
   /** Optional override so the modal matches the color used in the dashboard. */
   color?: string;
   /** Called after a successful trade so the parent can refetch holdings. */
-  onTraded?: () => void;
+  onTraded?: () => void | Promise<void>;
 };
 
 /** Reconstruct a synthetic price history for the holding by allocating the
@@ -447,11 +447,8 @@ export function StockDetailDialog({
         ownedShares={Number(holding.shares ?? 0)}
         defaultAction={tradeAction}
         color={color}
-        onTraded={() => {
-          // Bubble up so the parent (InvestmentTab / search flow) can refresh
-          // holdings, summary, allocation. Closing the detail dialog too keeps
-          // the user oriented on whichever view they came from.
-          onTraded?.();
+        onTraded={async () => {
+          await Promise.resolve(onTraded?.());
           onOpenChange(false);
         }}
       />

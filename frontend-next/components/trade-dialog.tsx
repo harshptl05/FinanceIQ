@@ -38,7 +38,11 @@ type Props = {
   /** Optional brand color so the trade modal matches the source row/chart. */
   color?: string;
   /** Called after a successful trade so the parent can refresh state. */
-  onTraded?: (action: TradeAction, ticker: string, shares: number) => void;
+  onTraded?: (
+    action: TradeAction,
+    ticker: string,
+    shares: number,
+  ) => void | Promise<void>;
 };
 
 const QUICK_PRESETS_BUY = [1, 5, 10, 25];
@@ -87,7 +91,7 @@ export function TradeDialog({
   // Live tick overlay — the displayed quote moves while the modal is open
   // (matches the chart on the page behind it). Mutual funds skip this in
   // the live-prices store, so they fall through to apiPrice / NAV.
-  const { prices } = useLivePrices();
+  const { prices, setPrice } = useLivePrices();
   const livePrice = prices[ticker] ?? apiPrice;
   const price = livePrice > 0 ? livePrice : apiPrice;
 
@@ -142,7 +146,10 @@ export function TradeDialog({
           description: `${fmtMoney(price)} per share · total ${fmtMoney(totalDollars)}`,
         },
       );
-      onTraded?.(action, ticker, sharesNum);
+      await Promise.resolve(onTraded?.(action, ticker, sharesNum));
+      if (!isFund && (action === 'buy' || (action === 'sell' && !resp.closed))) {
+        setPrice(ticker, price);
+      }
       onOpenChange(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Trade failed';

@@ -215,7 +215,9 @@ export default function PortfolioDashboard() {
           open={searchOpen}
           onOpenChange={setSearchOpen}
           holdings={data.holdings}
-          onTraded={() => void data.refresh()}
+          onTraded={async () => {
+            await data.refresh();
+          }}
         />
 
         <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />

@@ -173,8 +173,7 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
         };
       })
       .filter((h) => Number.isFinite(h.change))
-      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-      .slice(0, 8);
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
     return movers;
   }, [holdings, colorMap]);
 
@@ -498,7 +497,9 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
         open={!!activeTicker}
         onOpenChange={(o) => !o && setActiveTicker(null)}
         color={activeTicker ? colorMap[activeTicker] : undefined}
-        onTraded={() => void refresh()}
+        onTraded={async () => {
+          await refresh();
+        }}
       />
 
       {tradeHolding && (
@@ -512,7 +513,9 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
           ownedShares={Number(tradeHolding.shares ?? 0)}
           defaultAction={tradeAction}
           color={colorMap[tradeHolding.ticker]}
-          onTraded={() => void refresh()}
+          onTraded={async () => {
+          await refresh();
+        }}
         />
       )}
     </>

@@ -331,9 +331,9 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
           </div>
         </div>
 
-        {/* Ticker pill row — auto-scrolls horizontally if too many */}
+        {/* Ticker pill row — every holding with a price (scroll when many) */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-          {eligible.slice(0, 8).map((h) => {
+          {eligible.map((h) => {
             const apiP = Number(h.current_price ?? 0);
             const live = prices[h.ticker] ?? apiP;
             // Same period-start logic as the active chart, applied per-pill.

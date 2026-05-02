@@ -20,8 +20,10 @@ import {
   type Candle,
 } from '@/lib/market-data';
 import { useStableSetPrice } from '@/lib/live-prices';
+import { navHistory } from '@/lib/funds';
 
 export type MarketChartKind = 'candlestick' | 'line';
+export type MarketChartMode = 'live' | 'daily-nav';
 
 interface Props {
   ticker: string;
@@ -32,12 +34,19 @@ interface Props {
   /** us_stocks | bonds | cash | … — drives the volatility tuning. */
   assetClass?: string | null;
   height?: number;
-  /** ms between live ticks. Default 2000 (2s) to match the spec. */
+  /** ms between live ticks. Default 2000 (2s) to match the spec.
+   *  Ignored in 'daily-nav' mode. */
   intervalMs?: number;
   /** Number of historical bars to seed the chart with. */
   historyBars?: number;
   /** "candlestick" for stocks, "line" for cash / money-market funds. */
   kind?: MarketChartKind;
+  /** "live" for stocks/ETFs (intraday ticking), "daily-nav" for mutual
+   *  funds (90-day NAV history, no ticking, day-resolution x-axis). */
+  mode?: MarketChartMode;
+  /** Optional fund category to tune NAV walk volatility. Only used in
+   *  'daily-nav' mode. */
+  fundCategory?: string | null;
   /** Receive each new tick — handy for parent-side animations. */
   onTick?: (price: number) => void;
 }
@@ -62,6 +71,8 @@ export function MarketChart({
   intervalMs = 2000,
   historyBars = 180,
   kind = 'candlestick',
+  mode = 'live',
+  fundCategory,
   onTick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,6 +84,9 @@ export function MarketChart({
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !ticker || basePrice <= 0) return;
+
+    // Mutual fund mode: line series, day resolution, no live ticks.
+    const isDailyNav = mode === 'daily-nav';
 
     const vol = volatilityFor(assetClass);
 
@@ -95,19 +109,24 @@ export function MarketChart({
       },
       timeScale: {
         borderColor: 'rgba(229,231,235,1)',
-        timeVisible: true,
+        // Mutual funds price daily — show day labels, not seconds/minutes.
+        timeVisible: !isDailyNav,
         secondsVisible: false,
         rightOffset: 4,
       },
       crosshair: {
-        mode: 0, // Magnet
+        mode: 0,
         vertLine: { color: 'rgba(99,102,241,0.4)', labelBackgroundColor: color },
         horzLine: { color: 'rgba(99,102,241,0.4)', labelBackgroundColor: color },
       },
     });
 
+    // For mutual funds we always force a line series — candlesticks would be
+    // misleading since funds don't have intraday OHLC.
+    const effectiveKind: MarketChartKind = isDailyNav ? 'line' : kind;
+
     let series: ISeriesApi<'Candlestick'> | ISeriesApi<'Line'>;
-    if (kind === 'candlestick') {
+    if (effectiveKind === 'candlestick') {
       series = chart.addSeries(CandlestickSeries, {
         upColor: '#10b981',
         downColor: '#ef4444',
@@ -123,10 +142,44 @@ export function MarketChart({
         priceLineVisible: true,
         priceLineColor: color,
         priceLineWidth: 1,
-        priceLineStyle: 2, // dashed
+        priceLineStyle: 2,
       });
     }
 
+    if (isDailyNav) {
+      // Daily NAV history — 90 calendar days, deterministic walk.
+      const navData = navHistory(ticker, fundCategory ?? null, basePrice, 90);
+      const data: LineData[] = navData.map((d) => ({
+        time: d.time as Time,
+        value: d.value,
+      }));
+      (series as ISeriesApi<'Line'>).setData(data);
+      chart.timeScale().fitContent();
+
+      // Mirror the latest NAV to the live-prices store. Note: live-prices
+      // skips writes for mutual funds anyway (NAV is once/day) — this is
+      // a no-op safeguard.
+      setLivePrice(ticker, basePrice);
+      onTickRef.current?.(basePrice);
+
+      const ro = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        chart.applyOptions({
+          width: Math.floor(entry.contentRect.width),
+          height,
+        });
+      });
+      ro.observe(container);
+
+      // No setInterval: NAV updates daily, not every 2 seconds.
+      return () => {
+        ro.disconnect();
+        chart.remove();
+      };
+    }
+
+    // Live mode (stocks / ETFs / cash) — ticking 2s candles or line.
     const history: Candle[] = generateSyntheticHistory(
       ticker,
       basePrice,
@@ -134,7 +187,7 @@ export function MarketChart({
       vol,
     );
 
-    if (kind === 'candlestick') {
+    if (effectiveKind === 'candlestick') {
       const data: CandlestickData[] = history.map((c) => ({
         time: c.time as UTCTimestamp,
         open: c.open,
@@ -164,7 +217,6 @@ export function MarketChart({
     setLivePrice(ticker, lastCandle.close);
     onTickRef.current?.(lastCandle.close);
 
-    // Resize handling — track the container and feed widths to applyOptions.
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
@@ -175,10 +227,9 @@ export function MarketChart({
     });
     ro.observe(container);
 
-    // Tick loop — every `intervalMs`, append a fresh bar.
     const interval = setInterval(() => {
       const next = generateNextCandle(lastCandle, vol);
-      if (kind === 'candlestick') {
+      if (effectiveKind === 'candlestick') {
         (series as ISeriesApi<'Candlestick'>).update({
           time: next.time as UTCTimestamp,
           open: next.open,
@@ -202,10 +253,20 @@ export function MarketChart({
       ro.disconnect();
       chart.remove();
     };
-    // We deliberately do NOT include setLivePrice in deps — it's stable
-    // already and listing it would re-init the chart on every render.
+    // setLivePrice is stable; deliberately omitted to avoid re-init.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker, basePrice, color, assetClass, height, intervalMs, historyBars, kind]);
+  }, [
+    ticker,
+    basePrice,
+    color,
+    assetClass,
+    height,
+    intervalMs,
+    historyBars,
+    kind,
+    mode,
+    fundCategory,
+  ]);
 
   return (
     <div

@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react';
 
+import { isMutualFund } from './funds';
+
 /**
  * Global store of "live" simulated prices, keyed by ticker.
  *
@@ -54,6 +56,10 @@ export function LivePricesProvider({ children }: { children: ReactNode }) {
 
   const setPrice = useCallback((ticker: string, price: number) => {
     if (!ticker || !Number.isFinite(price) || price <= 0) return;
+    // Mutual funds price ONCE per day (NAV @ 4pm ET). Pretending they
+    // tick second-by-second would be inaccurate and erode demo trust —
+    // skip the live overlay for them and let the last-known price stand.
+    if (isMutualFund(ticker)) return;
     setPrices((prev) => {
       // Round to 4 decimals to avoid floating-point churn when comparing.
       const rounded = Math.round(price * 10000) / 10000;

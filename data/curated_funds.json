@@ -1,0 +1,566 @@
+{
+  "_meta": {
+    "description": "Hand-curated mutual fund + ETF metadata for the most commonly held funds in 401k / IRA accounts. Numbers are representative (early-2024 prospectuses) — accurate enough for the everyday-investor 'what do I actually own' insight, without depending on flaky scrapers at runtime.",
+    "version": "2024-h1",
+    "fields": "expense_ratio is decimal (0.0004 == 0.04% / 4 bps). top_holdings weights are decimals summing to <=1. sector_weights are decimals summing to <=1."
+  },
+  "funds": {
+    "VTSAX": {
+      "name": "Vanguard Total Stock Market Index Admiral",
+      "ticker": "VTSAX",
+      "fund_family": "Vanguard",
+      "category": "Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0004,
+      "inception_date": "2000-11-13",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",                "weight": 0.0611 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",            "weight": 0.0567 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",               "weight": 0.0431 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",            "weight": 0.0312 },
+        { "ticker": "META",  "name": "Meta Platforms",            "weight": 0.0185 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",          "weight": 0.0157 },
+        { "ticker": "GOOG",  "name": "Alphabet Class C",          "weight": 0.0134 },
+        { "ticker": "BRK.B", "name": "Berkshire Hathaway",        "weight": 0.0144 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",                 "weight": 0.0124 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",            "weight": 0.0118 }
+      ],
+      "sector_weights": {
+        "Technology": 0.298,
+        "Financials": 0.131,
+        "Healthcare": 0.124,
+        "Consumer Discretionary": 0.105,
+        "Industrials": 0.087,
+        "Communication Services": 0.083,
+        "Consumer Staples": 0.054,
+        "Energy": 0.039,
+        "Utilities": 0.024,
+        "Real Estate": 0.024,
+        "Materials": 0.022
+      }
+    },
+    "VFIAX": {
+      "name": "Vanguard 500 Index Admiral",
+      "ticker": "VFIAX",
+      "fund_family": "Vanguard",
+      "category": "Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0004,
+      "inception_date": "2000-11-13",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.0701 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.0651 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.0494 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.0358 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.0212 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.0181 },
+        { "ticker": "GOOG",  "name": "Alphabet Class C",  "weight": 0.0154 },
+        { "ticker": "BRK.B", "name": "Berkshire Hathaway","weight": 0.0166 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.0143 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.0136 }
+      ],
+      "sector_weights": {
+        "Technology": 0.305,
+        "Financials": 0.128,
+        "Healthcare": 0.125,
+        "Consumer Discretionary": 0.107,
+        "Communication Services": 0.087,
+        "Industrials": 0.080,
+        "Consumer Staples": 0.058,
+        "Energy": 0.038,
+        "Utilities": 0.024,
+        "Real Estate": 0.024,
+        "Materials": 0.024
+      }
+    },
+    "FXAIX": {
+      "name": "Fidelity 500 Index",
+      "ticker": "FXAIX",
+      "fund_family": "Fidelity",
+      "category": "Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.00015,
+      "inception_date": "1988-02-17",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.0699 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.0648 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.0492 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.0356 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.0211 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.0180 },
+        { "ticker": "GOOG",  "name": "Alphabet Class C",  "weight": 0.0153 },
+        { "ticker": "BRK.B", "name": "Berkshire Hathaway","weight": 0.0165 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.0142 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.0135 }
+      ],
+      "sector_weights": {
+        "Technology": 0.305,
+        "Financials": 0.128,
+        "Healthcare": 0.125,
+        "Consumer Discretionary": 0.107,
+        "Communication Services": 0.087,
+        "Industrials": 0.080,
+        "Consumer Staples": 0.058,
+        "Energy": 0.038,
+        "Utilities": 0.024,
+        "Real Estate": 0.024,
+        "Materials": 0.024
+      }
+    },
+    "FZROX": {
+      "name": "Fidelity ZERO Total Market Index",
+      "ticker": "FZROX",
+      "fund_family": "Fidelity",
+      "category": "Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0,
+      "inception_date": "2018-08-02",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.0613 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.0570 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.0432 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.0314 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.0186 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.0158 },
+        { "ticker": "GOOG",  "name": "Alphabet Class C",  "weight": 0.0135 },
+        { "ticker": "BRK.B", "name": "Berkshire Hathaway","weight": 0.0145 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.0125 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.0119 }
+      ],
+      "sector_weights": {
+        "Technology": 0.297,
+        "Financials": 0.130,
+        "Healthcare": 0.124,
+        "Consumer Discretionary": 0.105,
+        "Industrials": 0.087,
+        "Communication Services": 0.083,
+        "Consumer Staples": 0.054,
+        "Energy": 0.039,
+        "Utilities": 0.024,
+        "Real Estate": 0.024,
+        "Materials": 0.022
+      }
+    },
+    "FCNTX": {
+      "name": "Fidelity Contrafund",
+      "ticker": "FCNTX",
+      "fund_family": "Fidelity",
+      "category": "Large Growth",
+      "is_index_fund": false,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0039,
+      "inception_date": "1967-05-17",
+      "top_holdings": [
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.142 },
+        { "ticker": "BRK.A", "name": "Berkshire Hathaway","weight": 0.103 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.080 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.060 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.052 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.040 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.035 },
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.024 },
+        { "ticker": "UBER",  "name": "Uber Technologies", "weight": 0.022 },
+        { "ticker": "AXP",   "name": "American Express",  "weight": 0.020 }
+      ],
+      "sector_weights": {
+        "Technology": 0.302,
+        "Communication Services": 0.235,
+        "Consumer Discretionary": 0.151,
+        "Financials": 0.142,
+        "Healthcare": 0.084,
+        "Industrials": 0.038,
+        "Consumer Staples": 0.022,
+        "Energy": 0.014,
+        "Materials": 0.007,
+        "Real Estate": 0.005
+      }
+    },
+    "FBGRX": {
+      "name": "Fidelity Blue Chip Growth",
+      "ticker": "FBGRX",
+      "fund_family": "Fidelity",
+      "category": "Large Growth",
+      "is_index_fund": false,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0048,
+      "inception_date": "1987-12-31",
+      "top_holdings": [
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.123 },
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.105 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.098 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.082 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.074 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.044 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.030 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.022 },
+        { "ticker": "AVGO",  "name": "Broadcom Inc",      "weight": 0.020 },
+        { "ticker": "NFLX",  "name": "Netflix Inc",       "weight": 0.018 }
+      ],
+      "sector_weights": {
+        "Technology": 0.498,
+        "Communication Services": 0.150,
+        "Consumer Discretionary": 0.155,
+        "Healthcare": 0.087,
+        "Financials": 0.045,
+        "Industrials": 0.034,
+        "Consumer Staples": 0.018,
+        "Energy": 0.008,
+        "Materials": 0.005
+      }
+    },
+    "VTIAX": {
+      "name": "Vanguard Total International Stock Index Admiral",
+      "ticker": "VTIAX",
+      "fund_family": "Vanguard",
+      "category": "Foreign Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0011,
+      "inception_date": "2010-11-29",
+      "top_holdings": [
+        { "ticker": "TSM",   "name": "Taiwan Semiconductor",        "weight": 0.0205 },
+        { "ticker": "NVO",   "name": "Novo Nordisk",                "weight": 0.0117 },
+        { "ticker": "ASML",  "name": "ASML Holding",                "weight": 0.0103 },
+        { "ticker": "NESN",  "name": "Nestle SA",                   "weight": 0.0092 },
+        { "ticker": "TM",    "name": "Toyota Motor",                "weight": 0.0080 },
+        { "ticker": "SAP",   "name": "SAP SE",                      "weight": 0.0078 },
+        { "ticker": "SHEL",  "name": "Shell PLC",                   "weight": 0.0072 },
+        { "ticker": "MC",    "name": "LVMH Moet Hennessy",          "weight": 0.0068 },
+        { "ticker": "AZN",   "name": "AstraZeneca PLC",             "weight": 0.0067 },
+        { "ticker": "NOVO",  "name": "Novartis AG",                 "weight": 0.0061 }
+      ],
+      "sector_weights": {
+        "Financials": 0.205,
+        "Industrials": 0.140,
+        "Technology": 0.122,
+        "Consumer Discretionary": 0.111,
+        "Healthcare": 0.097,
+        "Consumer Staples": 0.082,
+        "Materials": 0.075,
+        "Communication Services": 0.058,
+        "Energy": 0.054,
+        "Utilities": 0.029,
+        "Real Estate": 0.027
+      }
+    },
+    "VBTLX": {
+      "name": "Vanguard Total Bond Market Index Admiral",
+      "ticker": "VBTLX",
+      "fund_family": "Vanguard",
+      "category": "Intermediate Core Bond",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0005,
+      "inception_date": "2001-11-12",
+      "top_holdings": [
+        { "ticker": "USTR",  "name": "U.S. Treasury Notes",         "weight": 0.420 },
+        { "ticker": "FNMA",  "name": "Fannie Mae MBS",              "weight": 0.150 },
+        { "ticker": "GNMA",  "name": "Ginnie Mae MBS",              "weight": 0.085 },
+        { "ticker": "FHLMC", "name": "Freddie Mac MBS",             "weight": 0.075 },
+        { "ticker": "CORP",  "name": "Investment-grade corporates", "weight": 0.245 }
+      ],
+      "sector_weights": {
+        "U.S. Treasury": 0.420,
+        "Mortgage-backed": 0.310,
+        "Investment-grade Corporate": 0.245,
+        "Government Agency": 0.025
+      }
+    },
+    "VMFXX": {
+      "name": "Vanguard Federal Money Market",
+      "ticker": "VMFXX",
+      "fund_family": "Vanguard",
+      "category": "Money Market",
+      "is_index_fund": false,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0011,
+      "inception_date": "1981-07-13",
+      "top_holdings": [
+        { "ticker": "TBILL",  "name": "U.S. Treasury Bills",         "weight": 0.45 },
+        { "ticker": "REPO",   "name": "Treasury Repurchase Agreements", "weight": 0.40 },
+        { "ticker": "AGENCY", "name": "Government Agency Debt",      "weight": 0.15 }
+      ],
+      "sector_weights": {
+        "U.S. Treasury": 0.85,
+        "Government Agency": 0.15
+      }
+    },
+    "VFFVX": {
+      "name": "Vanguard Target Retirement 2055 Fund",
+      "ticker": "VFFVX",
+      "fund_family": "Vanguard",
+      "category": "Target-Date 2055",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0008,
+      "inception_date": "2010-08-18",
+      "top_holdings": [
+        { "ticker": "VTSMX", "name": "Vanguard Total Stock Market",        "weight": 0.541 },
+        { "ticker": "VGTSX", "name": "Vanguard Total Intl Stock Index",    "weight": 0.359 },
+        { "ticker": "VTBIX", "name": "Vanguard Total Bond Market II",      "weight": 0.070 },
+        { "ticker": "VTILX", "name": "Vanguard Total International Bond",  "weight": 0.030 }
+      ],
+      "sector_weights": {
+        "U.S. Stocks": 0.541,
+        "Intl Stocks": 0.359,
+        "U.S. Bonds": 0.070,
+        "Intl Bonds": 0.030
+      }
+    },
+    "VTHRX": {
+      "name": "Vanguard Target Retirement 2030 Fund",
+      "ticker": "VTHRX",
+      "fund_family": "Vanguard",
+      "category": "Target-Date 2030",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0008,
+      "inception_date": "2006-06-07",
+      "top_holdings": [
+        { "ticker": "VTSMX", "name": "Vanguard Total Stock Market",        "weight": 0.394 },
+        { "ticker": "VTBIX", "name": "Vanguard Total Bond Market II",      "weight": 0.270 },
+        { "ticker": "VGTSX", "name": "Vanguard Total Intl Stock Index",    "weight": 0.262 },
+        { "ticker": "VTILX", "name": "Vanguard Total International Bond",  "weight": 0.074 }
+      ],
+      "sector_weights": {
+        "U.S. Stocks": 0.394,
+        "Intl Stocks": 0.262,
+        "U.S. Bonds": 0.270,
+        "Intl Bonds": 0.074
+      }
+    },
+    "AGTHX": {
+      "name": "American Funds Growth Fund of America",
+      "ticker": "AGTHX",
+      "fund_family": "American Funds",
+      "category": "Large Growth",
+      "is_index_fund": false,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0061,
+      "inception_date": "1973-12-01",
+      "top_holdings": [
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.078 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.062 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.045 },
+        { "ticker": "BKNG",  "name": "Booking Holdings",  "weight": 0.041 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.038 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.034 },
+        { "ticker": "ASML",  "name": "ASML Holding",      "weight": 0.030 },
+        { "ticker": "NFLX",  "name": "Netflix Inc",       "weight": 0.028 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.025 },
+        { "ticker": "MELI",  "name": "MercadoLibre",      "weight": 0.022 }
+      ],
+      "sector_weights": {
+        "Technology": 0.302,
+        "Communication Services": 0.180,
+        "Consumer Discretionary": 0.154,
+        "Healthcare": 0.140,
+        "Financials": 0.092,
+        "Industrials": 0.071,
+        "Consumer Staples": 0.025,
+        "Energy": 0.022,
+        "Materials": 0.014
+      }
+    },
+    "PRGFX": {
+      "name": "T. Rowe Price Growth Stock",
+      "ticker": "PRGFX",
+      "fund_family": "T. Rowe Price",
+      "category": "Large Growth",
+      "is_index_fund": false,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0064,
+      "inception_date": "1950-04-11",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.072 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.075 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.080 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.060 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.045 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.038 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.030 },
+        { "ticker": "MA",    "name": "Mastercard Inc",    "weight": 0.024 },
+        { "ticker": "AVGO",  "name": "Broadcom Inc",      "weight": 0.020 },
+        { "ticker": "INTU",  "name": "Intuit Inc",        "weight": 0.018 }
+      ],
+      "sector_weights": {
+        "Technology": 0.420,
+        "Communication Services": 0.150,
+        "Consumer Discretionary": 0.140,
+        "Healthcare": 0.135,
+        "Financials": 0.080,
+        "Industrials": 0.045,
+        "Consumer Staples": 0.020,
+        "Energy": 0.005,
+        "Materials": 0.005
+      }
+    },
+    "SWPPX": {
+      "name": "Schwab S&P 500 Index",
+      "ticker": "SWPPX",
+      "fund_family": "Schwab",
+      "category": "Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": true,
+      "expense_ratio": 0.0002,
+      "inception_date": "1997-05-19",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.0701 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.0651 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.0494 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.0358 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.0212 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.0181 },
+        { "ticker": "GOOG",  "name": "Alphabet Class C",  "weight": 0.0154 },
+        { "ticker": "BRK.B", "name": "Berkshire Hathaway","weight": 0.0166 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.0143 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.0136 }
+      ],
+      "sector_weights": {
+        "Technology": 0.305,
+        "Financials": 0.128,
+        "Healthcare": 0.125,
+        "Consumer Discretionary": 0.107,
+        "Communication Services": 0.087,
+        "Industrials": 0.080,
+        "Consumer Staples": 0.058,
+        "Energy": 0.038,
+        "Utilities": 0.024,
+        "Real Estate": 0.024,
+        "Materials": 0.024
+      }
+    },
+    "VTI": {
+      "name": "Vanguard Total Stock Market ETF",
+      "ticker": "VTI",
+      "fund_family": "Vanguard",
+      "category": "Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": false,
+      "expense_ratio": 0.0003,
+      "inception_date": "2001-05-24",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.0611 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.0567 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.0431 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.0312 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.0185 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.0157 },
+        { "ticker": "GOOG",  "name": "Alphabet Class C",  "weight": 0.0134 },
+        { "ticker": "BRK.B", "name": "Berkshire Hathaway","weight": 0.0144 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.0124 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.0118 }
+      ],
+      "sector_weights": {
+        "Technology": 0.298,
+        "Financials": 0.131,
+        "Healthcare": 0.124,
+        "Consumer Discretionary": 0.105,
+        "Industrials": 0.087,
+        "Communication Services": 0.083,
+        "Consumer Staples": 0.054,
+        "Energy": 0.039,
+        "Utilities": 0.024,
+        "Real Estate": 0.024,
+        "Materials": 0.022
+      }
+    },
+    "VOO": {
+      "name": "Vanguard S&P 500 ETF",
+      "ticker": "VOO",
+      "fund_family": "Vanguard",
+      "category": "Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": false,
+      "expense_ratio": 0.0003,
+      "inception_date": "2010-09-07",
+      "top_holdings": [
+        { "ticker": "AAPL",  "name": "Apple Inc.",        "weight": 0.0701 },
+        { "ticker": "MSFT",  "name": "Microsoft Corp",    "weight": 0.0651 },
+        { "ticker": "NVDA",  "name": "NVIDIA Corp",       "weight": 0.0494 },
+        { "ticker": "AMZN",  "name": "Amazon.com Inc",    "weight": 0.0358 },
+        { "ticker": "META",  "name": "Meta Platforms",    "weight": 0.0212 },
+        { "ticker": "GOOGL", "name": "Alphabet Class A",  "weight": 0.0181 },
+        { "ticker": "GOOG",  "name": "Alphabet Class C",  "weight": 0.0154 },
+        { "ticker": "BRK.B", "name": "Berkshire Hathaway","weight": 0.0166 },
+        { "ticker": "TSLA",  "name": "Tesla Inc",         "weight": 0.0143 },
+        { "ticker": "LLY",   "name": "Eli Lilly & Co",    "weight": 0.0136 }
+      ],
+      "sector_weights": {
+        "Technology": 0.305,
+        "Financials": 0.128,
+        "Healthcare": 0.125,
+        "Consumer Discretionary": 0.107,
+        "Communication Services": 0.087,
+        "Industrials": 0.080,
+        "Consumer Staples": 0.058,
+        "Energy": 0.038,
+        "Utilities": 0.024,
+        "Real Estate": 0.024,
+        "Materials": 0.024
+      }
+    },
+    "BND": {
+      "name": "Vanguard Total Bond Market ETF",
+      "ticker": "BND",
+      "fund_family": "Vanguard",
+      "category": "Intermediate Core Bond",
+      "is_index_fund": true,
+      "is_mutual_fund": false,
+      "expense_ratio": 0.0003,
+      "inception_date": "2007-04-03",
+      "top_holdings": [
+        { "ticker": "USTR",  "name": "U.S. Treasury Notes",         "weight": 0.420 },
+        { "ticker": "FNMA",  "name": "Fannie Mae MBS",              "weight": 0.150 },
+        { "ticker": "GNMA",  "name": "Ginnie Mae MBS",              "weight": 0.085 },
+        { "ticker": "FHLMC", "name": "Freddie Mac MBS",             "weight": 0.075 },
+        { "ticker": "CORP",  "name": "Investment-grade corporates", "weight": 0.245 }
+      ],
+      "sector_weights": {
+        "U.S. Treasury": 0.420,
+        "Mortgage-backed": 0.310,
+        "Investment-grade Corporate": 0.245,
+        "Government Agency": 0.025
+      }
+    },
+    "VXUS": {
+      "name": "Vanguard Total International Stock ETF",
+      "ticker": "VXUS",
+      "fund_family": "Vanguard",
+      "category": "Foreign Large Blend",
+      "is_index_fund": true,
+      "is_mutual_fund": false,
+      "expense_ratio": 0.0008,
+      "inception_date": "2011-01-26",
+      "top_holdings": [
+        { "ticker": "TSM",   "name": "Taiwan Semiconductor",        "weight": 0.0205 },
+        { "ticker": "NVO",   "name": "Novo Nordisk",                "weight": 0.0117 },
+        { "ticker": "ASML",  "name": "ASML Holding",                "weight": 0.0103 },
+        { "ticker": "NESN",  "name": "Nestle SA",                   "weight": 0.0092 },
+        { "ticker": "TM",    "name": "Toyota Motor",                "weight": 0.0080 },
+        { "ticker": "SAP",   "name": "SAP SE",                      "weight": 0.0078 },
+        { "ticker": "SHEL",  "name": "Shell PLC",                   "weight": 0.0072 },
+        { "ticker": "MC",    "name": "LVMH Moet Hennessy",          "weight": 0.0068 },
+        { "ticker": "AZN",   "name": "AstraZeneca PLC",             "weight": 0.0067 },
+        { "ticker": "NOVO",  "name": "Novartis AG",                 "weight": 0.0061 }
+      ],
+      "sector_weights": {
+        "Financials": 0.205,
+        "Industrials": 0.140,
+        "Technology": 0.122,
+        "Consumer Discretionary": 0.111,
+        "Healthcare": 0.097,
+        "Consumer Staples": 0.082,
+        "Materials": 0.075,
+        "Communication Services": 0.058,
+        "Energy": 0.054,
+        "Utilities": 0.029,
+        "Real Estate": 0.027
+      }
+    }
+  }
+}

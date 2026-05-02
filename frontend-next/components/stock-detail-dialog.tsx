@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -9,14 +9,14 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { TrendingDown, TrendingUp, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { Holding, PortfolioSnapshot } from '@/lib/api';
+import type { FundMetadata, Holding, PortfolioSnapshot } from '@/lib/api';
 import {
   fmtMoney,
   fmtPct,
@@ -25,6 +25,13 @@ import {
   tickerColor,
 } from '@/lib/format';
 import { TickerLogo } from '@/components/ticker-logo';
+import {
+  fundMetadata,
+  hasFundData,
+  isMutualFund,
+} from '@/lib/funds';
+import { FundComposition } from '@/components/fund-composition';
+import { FundCostDrag } from '@/components/fund-cost-drag';
 
 type Props = {
   holding: Holding | null;
@@ -76,6 +83,35 @@ export function StockDetailDialog({
     [holding, totalPortfolioValue, history],
   );
 
+  const ticker = holding?.ticker ?? '';
+  const isFundLike = !!ticker && (isMutualFund(holding) || hasFundData(ticker));
+  const isFund = !!ticker && isMutualFund(holding);
+
+  const [fundMeta, setFundMeta] = useState<FundMetadata | null>(null);
+  const [fundLoading, setFundLoading] = useState(false);
+
+  useEffect(() => {
+    if (!ticker || !isFundLike) {
+      setFundMeta(null);
+      return;
+    }
+    let cancelled = false;
+    setFundLoading(true);
+    fundMetadata(ticker)
+      .then((m) => {
+        if (cancelled) return;
+        setFundMeta(m);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFundMeta(null);
+      })
+      .finally(() => !cancelled && setFundLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker, isFundLike]);
+
   if (!holding) return null;
 
   const cv = Number(holding.current_value ?? 0);
@@ -83,9 +119,13 @@ export function StockDetailDialog({
   const gain = cv - cost;
   const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
   const weight = totalPortfolioValue > 0 ? (cv / totalPortfolioValue) * 100 : 0;
-  const ticker = holding.ticker;
   const color = colorOverride ?? tickerColor(ticker);
   const aClass = holding.asset_class ?? 'other';
+
+  // Mutual fund expense ratio comes from either the holding row (after
+  // migration 002) or the resolved fund metadata.
+  const expenseRatio =
+    holding.expense_ratio ?? fundMeta?.expense_ratio ?? null;
 
   // Period change derived from the synthetic series endpoints
   const periodChange =
@@ -99,7 +139,7 @@ export function StockDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <TickerLogo
@@ -108,10 +148,22 @@ export function StockDetailDialog({
               size="lg"
               rounded="lg"
             />
-            <div className="min-w-0">
-              <DialogTitle className="text-xl">{ticker}</DialogTitle>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <DialogTitle className="text-xl">{ticker}</DialogTitle>
+                {isFund ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold tracking-wide">
+                    MUTUAL FUND
+                  </span>
+                ) : null}
+                {!isFund && hasFundData(ticker) && fundMeta?.is_index_fund ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-semibold tracking-wide">
+                    INDEX ETF
+                  </span>
+                ) : null}
+              </div>
               <p className="text-sm text-gray-500 truncate">
-                {holding.name ?? ticker} ·{' '}
+                {holding.name ?? fundMeta?.name ?? ticker} ·{' '}
                 <span
                   className="font-medium"
                   style={{ color: assetColor(aClass) }}
@@ -123,9 +175,25 @@ export function StockDetailDialog({
           </div>
         </DialogHeader>
 
+        {isFund ? (
+          <div className="mt-3 -mb-1 rounded-xl bg-indigo-50/60 border border-indigo-100 px-3 py-2 flex items-center gap-2 text-xs text-indigo-900">
+            <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            <span>
+              Mutual funds price <strong>once daily</strong> at 4:00 PM ET — the
+              price you see is the latest NAV
+              {holding.nav_date ? (
+                <> (as of {new Date(holding.nav_date).toLocaleDateString()})</>
+              ) : null}
+              .
+            </span>
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
           <div className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[11px] text-gray-500">Price</p>
+            <p className="text-[11px] text-gray-500">
+              {isFund ? 'NAV (last close)' : 'Price'}
+            </p>
             <p className="text-base font-semibold tabular-nums mt-0.5">
               {fmtMoney(holding.current_price ?? 0)}
             </p>
@@ -211,6 +279,19 @@ export function StockDetailDialog({
             </p>
           </div>
         </div>
+
+        {isFundLike ? (
+          <div className="mt-4 space-y-4">
+            <FundComposition ticker={ticker} metadata={fundMeta} />
+            {expenseRatio != null ? (
+              <FundCostDrag
+                ticker={ticker}
+                expenseRatio={expenseRatio}
+                currentValue={cv}
+              />
+            ) : fundLoading ? null : null}
+          </div>
+        ) : null}
 
         <div className="h-48 mt-4">
           {data.length >= 2 ? (

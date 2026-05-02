@@ -31,6 +31,8 @@ import { CardSpinner, EmptyState } from '@/components/data-state';
 import { StockDetailDialog } from '@/components/stock-detail-dialog';
 import { TickerLogo } from '@/components/ticker-logo';
 import { LiveMarketCard } from '@/components/live-market-card';
+import { FundOverlapCard } from '@/components/fund-overlap-card';
+import { isMutualFund, formatExpenseRatio } from '@/lib/funds';
 
 type Period = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 type ProfitPeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
@@ -231,6 +233,9 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
 
       {/* Live Market — synthetic ticking chart that drives live P&L */}
       <LiveMarketCard holdings={holdings} />
+
+      {/* Mutual fund overlap insight — only renders when user owns 2+ funds */}
+      <FundOverlapCard onSelect={setActiveTicker} />
 
       {/* Hero Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -466,50 +471,68 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
             />
           ) : (
             <div className="space-y-2">
-              {myAssets.map((asset) => (
-                <button
-                  key={asset.ticker}
-                  onClick={() => setActiveTicker(asset.ticker)}
-                  className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <TickerLogo
-                      ticker={asset.ticker}
-                      color={asset.color}
-                      size="md"
-                      rounded="lg"
-                    />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">
-                        {asset.ticker}
+              {myAssets.map((asset) => {
+                const holding = holdings.find((h) => h.ticker === asset.ticker);
+                const fund = isMutualFund(holding ?? null);
+                const er = holding?.expense_ratio ?? null;
+                return (
+                  <button
+                    key={asset.ticker}
+                    onClick={() => setActiveTicker(asset.ticker)}
+                    className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-lg hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <TickerLogo
+                        ticker={asset.ticker}
+                        color={asset.color}
+                        size="md"
+                        rounded="lg"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate flex items-center gap-1.5">
+                          {asset.ticker}
+                          {fund ? (
+                            <span className="text-[9px] px-1.5 py-px rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold tracking-wider">
+                              MF
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {asset.name} · {asset.percentage.toFixed(1)}%
+                          {fund && er != null ? (
+                            <>
+                              {' · '}
+                              <span className="text-gray-400">
+                                {formatExpenseRatio(er)} ER
+                              </span>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm tabular-nums">
+                        {fmtMoney(asset.value)}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {asset.name} · {asset.percentage.toFixed(1)}%
+                      <p
+                        className={`text-xs font-medium flex items-center justify-end gap-0.5 ${
+                          asset.change >= 0 ? 'text-green-600' : 'text-rose-500'
+                        }`}
+                      >
+                        {asset.change >= 0 ? (
+                          <TrendingUp className="w-3 h-3" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3" />
+                        )}
+                        {fmtPct(asset.change, {
+                          withSign: true,
+                          decimals: 2,
+                        })}
                       </p>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-sm tabular-nums">
-                      {fmtMoney(asset.value)}
-                    </p>
-                    <p
-                      className={`text-xs font-medium flex items-center justify-end gap-0.5 ${
-                        asset.change >= 0 ? 'text-green-600' : 'text-rose-500'
-                      }`}
-                    >
-                      {asset.change >= 0 ? (
-                        <TrendingUp className="w-3 h-3" />
-                      ) : (
-                        <TrendingDown className="w-3 h-3" />
-                      )}
-                      {fmtPct(asset.change, {
-                        withSign: true,
-                        decimals: 2,
-                      })}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

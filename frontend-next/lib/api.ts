@@ -13,6 +13,51 @@ export type Holding = {
   avg_cost_basis?: number | null;
   current_price?: number | null;
   current_value?: number | null;
+  is_mutual_fund?: boolean | null;
+  expense_ratio?: number | null;
+  nav_date?: string | null;
+};
+
+export type FundHolding = {
+  ticker: string;
+  name: string;
+  weight: number;
+};
+
+export type FundMetadata = {
+  ticker: string;
+  name?: string | null;
+  fund_family?: string | null;
+  category?: string | null;
+  is_mutual_fund?: boolean | null;
+  is_index_fund?: boolean | null;
+  expense_ratio?: number | null;
+  inception_date?: string | null;
+  top_holdings?: FundHolding[] | null;
+  sector_weights?: Record<string, number> | null;
+  ytd_return?: number | null;
+  three_year_return?: number | null;
+  five_year_return?: number | null;
+  source?: 'curated' | 'yfinance' | 'unavailable' | string | null;
+  error?: string | null;
+};
+
+export type FundOverlapPair = {
+  a: string;
+  a_name: string;
+  b: string;
+  b_name: string;
+  overlap: number;
+  a_value: number;
+  b_value: number;
+};
+
+export type FundCostDragItem = {
+  ticker: string;
+  name: string;
+  expense_ratio: number;
+  current_value: number;
+  annual_drag: number;
 };
 
 export type Goal = {
@@ -254,6 +299,20 @@ export const api = {
       }>(`/chat/conversations/${id}`),
     deleteConversation: (id: string) =>
       fetchDelete<{ deleted: string }>(`/chat/conversations/${id}`),
+  },
+  funds: {
+    metadata: (ticker: string) =>
+      get<FundMetadata>(`/funds/${encodeURIComponent(ticker.toUpperCase())}`),
+    overlap: () =>
+      get<{ pairs: FundOverlapPair[]; fund_count: number }>(
+        '/funds/overlap/all',
+      ),
+    costDrag: () =>
+      get<{
+        annual_total: number;
+        ten_year_projected: number;
+        items: FundCostDragItem[];
+      }>('/funds/cost-drag/total'),
   },
   news: {
     refresh: () => post<unknown>('/news/refresh', {}),

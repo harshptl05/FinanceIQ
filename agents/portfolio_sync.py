@@ -3,6 +3,7 @@ from datetime import datetime, date
 from core.database import get_db
 from core.logger import get_logger
 from data.market_data import get_price
+from data.fund_data import is_mutual_fund
 from financial.rebalancing_math import calculate_current_allocation, check_threshold_rebalancing
 from financial.glide_path import get_target_allocation
 
@@ -20,22 +21,45 @@ async def sync_user_holdings(user_id: str) -> None:
     holdings_resp = db.table("holdings").select("*").eq("user_id", user_id).execute()
     holdings = holdings_resp.data or []
 
+    # Mutual funds price ONCE per day at 4pm ET. We only refresh their NAV
+    # in a window after market close (4pm ET = 21:00 UTC during DST) — any
+    # other time, intraday "ticking" would be fabricated and misleading.
+    now = datetime.utcnow()
+    in_nav_window = now.weekday() < 5 and 21 <= now.hour < 23
+
     for holding in holdings:
         ticker = holding.get("ticker")
         if not ticker:
             continue
+
+        # Skip mutual funds outside the daily NAV window — preserves the
+        # last known NAV instead of pretending it moved.
+        is_fund = bool(holding.get("is_mutual_fund")) or is_mutual_fund(
+            ticker, holding.get("asset_class")
+        )
+        if is_fund and not in_nav_window:
+            continue
+
         price = await get_price(ticker)
         if price is None:
             continue
         shares = float(holding.get("shares", 0))
         current_value = round(price * shares, 2)
-        db.table("holdings").update(
-            {
-                "current_price": price,
-                "current_value": current_value,
-                "last_updated": datetime.utcnow().isoformat(),
-            }
-        ).eq("id", holding["id"]).execute()
+        update_payload: dict = {
+            "current_price": price,
+            "current_value": current_value,
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+        if is_fund:
+            try:
+                update_payload["nav_date"] = date.today().isoformat()
+            except Exception:
+                pass
+        try:
+            db.table("holdings").update(update_payload).eq("id", holding["id"]).execute()
+        except Exception:
+            update_payload.pop("nav_date", None)
+            db.table("holdings").update(update_payload).eq("id", holding["id"]).execute()
 
     # Refresh after updates
     holdings_resp = db.table("holdings").select("*").eq("user_id", user_id).execute()

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 from core.database import get_db
 from data.market_data import get_price
+from data.fund_data import is_mutual_fund, get_fund_metadata_sync
 
 router = APIRouter()
 
@@ -39,16 +40,40 @@ async def create_holding(body: HoldingCreate, authorization: str | None = Header
     user_id = _get_user_id(authorization)
     db = get_db()
 
-    price = await get_price(body.ticker.upper()) or 0
+    ticker = body.ticker.upper()
+    price = await get_price(ticker) or 0
     current_value = round(price * body.shares, 2)
 
     payload = body.model_dump()
     payload["user_id"] = user_id
-    payload["ticker"] = body.ticker.upper()
+    payload["ticker"] = ticker
     payload["current_price"] = price
     payload["current_value"] = current_value
 
-    resp = db.table("holdings").insert(payload).execute()
+    # Auto-detect mutual funds: if it looks like one or curated data flags
+    # it, mark the holding accordingly so the rest of the stack can show
+    # NAV-correct UI (no fake intraday ticks, expense-ratio drag, etc).
+    if is_mutual_fund(ticker, body.asset_class):
+        meta = get_fund_metadata_sync(ticker)
+        # Only set fields the holdings table is guaranteed to accept.
+        # is_mutual_fund / expense_ratio / nav_date are added by migration
+        # 002 — if the migration hasn't run yet, we silently degrade rather
+        # than fail user creation.
+        try:
+            payload["is_mutual_fund"] = True
+            if meta.get("expense_ratio") is not None:
+                payload["expense_ratio"] = meta["expense_ratio"]
+        except Exception:
+            pass
+
+    try:
+        resp = db.table("holdings").insert(payload).execute()
+    except Exception:
+        # Migration 002 columns may not exist on older deployments. Strip
+        # the optional fields and retry once.
+        for k in ("is_mutual_fund", "expense_ratio", "nav_date"):
+            payload.pop(k, None)
+        resp = db.table("holdings").insert(payload).execute()
     return resp.data[0] if resp.data else {}
 
 

@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Pause, Play, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  Activity,
+  Clock,
+  Pause,
+  Play,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { MarketChart, type MarketChartKind } from '@/components/market-chart';
 import { TickerLogo } from '@/components/ticker-logo';
 import {
@@ -11,6 +18,7 @@ import {
   relativeTime,
 } from '@/lib/format';
 import { useLivePrices } from '@/lib/live-prices';
+import { isMutualFund } from '@/lib/funds';
 import type { Holding } from '@/lib/api';
 
 interface Props {
@@ -69,8 +77,11 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   const positive = dollarChange >= 0;
 
   const accent = colorMap[active] ?? '#6366F1';
+  const isFund = isMutualFund(activeHolding);
   const kind: MarketChartKind =
-    activeHolding.asset_class === 'cash' ? 'line' : 'candlestick';
+    activeHolding.asset_class === 'cash' || isFund
+      ? 'line'
+      : 'candlestick';
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
@@ -83,47 +94,58 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
             </div>
             <div>
               <h2 className="font-semibold text-sm leading-tight">
-                Live Market
+                {isFund ? 'Daily NAV' : 'Live Market'}
               </h2>
               <p className="text-[11px] text-gray-500">
-                Simulated tick every 2s · powers your live P&amp;L
+                {isFund
+                  ? 'Mutual funds price once per day at 4:00 PM ET'
+                  : 'Simulated tick every 2s · powers your live P&L'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[11px] flex items-center gap-1.5 text-gray-500">
-              <span className="relative flex w-2 h-2">
-                {isLive && (
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />
-                )}
-                <span
-                  className={`relative inline-flex w-2 h-2 rounded-full ${
-                    isLive ? 'bg-emerald-500' : 'bg-gray-300'
-                  }`}
-                />
+            {isFund ? (
+              <span className="text-[11px] flex items-center gap-1.5 text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full font-medium">
+                <Clock className="w-3 h-3" />
+                NAV — daily
               </span>
-              {isLive ? 'LIVE' : 'PAUSED'}
-              {lastTickAt && (
-                <span className="text-gray-400">
-                  · {relativeTime(new Date(lastTickAt).toISOString())}
+            ) : (
+              <>
+                <span className="text-[11px] flex items-center gap-1.5 text-gray-500">
+                  <span className="relative flex w-2 h-2">
+                    {isLive && (
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />
+                    )}
+                    <span
+                      className={`relative inline-flex w-2 h-2 rounded-full ${
+                        isLive ? 'bg-emerald-500' : 'bg-gray-300'
+                      }`}
+                    />
+                  </span>
+                  {isLive ? 'LIVE' : 'PAUSED'}
+                  {lastTickAt && (
+                    <span className="text-gray-400">
+                      · {relativeTime(new Date(lastTickAt).toISOString())}
+                    </span>
+                  )}
                 </span>
-              )}
-            </span>
-            <button
-              onClick={() => setIsLive(!isLive)}
-              className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border border-gray-200 hover:bg-gray-50 transition"
-            >
-              {isLive ? (
-                <>
-                  <Pause className="w-3 h-3" /> Pause
-                </>
-              ) : (
-                <>
-                  <Play className="w-3 h-3" /> Resume
-                </>
-              )}
-            </button>
+                <button
+                  onClick={() => setIsLive(!isLive)}
+                  className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border border-gray-200 hover:bg-gray-50 transition"
+                >
+                  {isLive ? (
+                    <>
+                      <Pause className="w-3 h-3" /> Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3 h-3" /> Resume
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -190,17 +212,29 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
               </p>
               <p
                 className={`text-xs font-semibold flex items-center gap-1 ${
-                  positive ? 'text-emerald-600' : 'text-rose-500'
+                  isFund
+                    ? 'text-indigo-700'
+                    : positive
+                      ? 'text-emerald-600'
+                      : 'text-rose-500'
                 }`}
               >
-                {positive ? (
+                {isFund ? (
+                  <Clock className="w-3 h-3" />
+                ) : positive ? (
                   <TrendingUp className="w-3 h-3" />
                 ) : (
                   <TrendingDown className="w-3 h-3" />
                 )}
-                {positive ? '+' : '−'}
-                {fmtMoney(Math.abs(dollarChange))} (
-                {fmtPct(Math.abs(pctChange), { decimals: 2 })}) since open
+                {isFund ? (
+                  <>Last NAV — next update 4:00 PM ET</>
+                ) : (
+                  <>
+                    {positive ? '+' : '−'}
+                    {fmtMoney(Math.abs(dollarChange))} (
+                    {fmtPct(Math.abs(pctChange), { decimals: 2 })}) since open
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -224,23 +258,25 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
           </div>
         </div>
 
-        {/* The chart itself — keyed by ticker so a new MarketChart instance
-            mounts cleanly when the user switches selection. */}
+        {/* The chart itself — keyed by ticker + mode so a new MarketChart
+            instance mounts cleanly when the user switches selection or
+            toggles between live/NAV mode. */}
         <MarketChart
-          key={active}
+          key={`${active}-${isFund ? 'nav' : 'live'}`}
           ticker={active}
           basePrice={basePrice}
           assetClass={activeHolding.asset_class}
           color={accent}
           kind={kind}
+          mode={isFund ? 'daily-nav' : 'live'}
           height={300}
           intervalMs={2000}
         />
 
         <p className="text-[10px] text-gray-400 mt-3 text-center">
-          Movement is simulated from a random walk seeded by the ticker so the
-          demo runs 24/7. Your live P&amp;L on this page updates from these
-          ticks too.
+          {isFund
+            ? '90 days of NAV history. Mutual funds publish a single price per day after the market closes — no intraday ticking.'
+            : 'Movement is simulated from a random walk seeded by the ticker so the demo runs 24/7. Your live P&L on this page updates from these ticks too.'}
         </p>
       </div>
     </div>

@@ -45,43 +45,44 @@ def main() -> None:
     print(sql)
     print("-" * 60)
 
-    # Try the most common pooler regions in order. Supabase pooler hostnames
-    # follow `aws-0-<region>.pooler.supabase.com` and require user
-    # `postgres.<project_ref>`.
-    regions = [
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2",
-        "eu-central-1",
-        "eu-west-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ap-northeast-1",
-        "ap-south-1",
+    # Supabase pooler hostnames are now sharded across `aws-0-*` and
+    # `aws-1-*` clusters. We try both shards plus port 5432/6543 across the
+    # most common regions until one accepts our tenant. Direct host
+    # (db.<ref>.supabase.co) is tried first when DNS resolves.
+    candidates: list[tuple[str, int, str]] = [
+        # Direct host — fastest when DNS resolves
+        (f"db.{project_ref}.supabase.co", 5432, "postgres"),
     ]
+    for shard in ("aws-1", "aws-0"):
+        for region in (
+            "us-east-2", "us-east-1", "us-west-1", "us-west-2",
+            "eu-central-1", "eu-west-1",
+            "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ap-south-1",
+        ):
+            for port in (5432, 6543):
+                candidates.append(
+                    (f"{shard}-{region}.pooler.supabase.com", port,
+                     f"postgres.{project_ref}"),
+                )
+
     last_err: Exception | None = None
-    for region in regions:
-        host = f"aws-0-{region}.pooler.supabase.com"
+    for host, port, user in candidates:
         try:
             conn = psycopg2.connect(
-                host=host,
-                port=6543,
-                user=f"postgres.{project_ref}",
-                password=pw,
-                dbname="postgres",
-                sslmode="require",
-                connect_timeout=4,
+                host=host, port=port, user=user,
+                password=pw, dbname="postgres",
+                sslmode="require", connect_timeout=4,
             )
             conn.autocommit = True
             with conn.cursor() as cur:
                 cur.execute(sql)
             conn.close()
-            print(f"migration applied via {host}")
+            print(f"migration applied via {host}:{port} as {user}")
             return
         except Exception as e:
             last_err = e
-            print(f"  {region}: {type(e).__name__}: {str(e).strip()[:120]}")
+            msg = str(e).strip().splitlines()[0][:120]
+            print(f"  {host}:{port} -> {type(e).__name__}: {msg}")
 
     print()
     print("could not connect via any known pooler region.")

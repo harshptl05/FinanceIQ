@@ -31,6 +31,7 @@ show "Rebalancing your portfolio…" badges).
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 from typing import Any
@@ -52,6 +53,27 @@ router = APIRouter()
 DEEPGRAM_AGENT_URL = "wss://agent.deepgram.com/v1/agent/converse"
 
 logger = logging.getLogger(__name__)
+
+
+def _headers_kwarg() -> str:
+    """websockets renamed `extra_headers` → `additional_headers` in v14.
+
+    We pin v13 in requirements but a Railway image with a cached newer build
+    could ship 14+, so detect the right kwarg at import time instead of
+    crashing the connection. The error the user saw on prod was exactly this:
+    `create_connection() got an unexpected keyword argument 'additional_headers'`
+    (v13's legacy connect doesn't know about it).
+    """
+    try:
+        params = inspect.signature(websockets.connect).parameters
+    except (TypeError, ValueError):
+        return "extra_headers"
+    if "additional_headers" in params:
+        return "additional_headers"
+    return "extra_headers"
+
+
+_HEADERS_KW = _headers_kwarg()
 
 
 SYSTEM_PROMPT = """You are the FinanceIQ voice advisor — a calm, plain-English
@@ -205,15 +227,16 @@ async def voice_ws(websocket: WebSocket, token: str = Query(default="")):
         await websocket.close(code=1008)
         return
 
+    headers = {"Authorization": f"Token {settings.deepgram_api_key}"}
+    connect_kwargs: dict[str, Any] = {
+        _HEADERS_KW: headers,
+        "max_size": None,
+        "ping_interval": 20,
+        "ping_timeout": 20,
+        "open_timeout": 15,
+    }
     try:
-        async with websockets.connect(
-            DEEPGRAM_AGENT_URL,
-            additional_headers={"Authorization": f"Token {settings.deepgram_api_key}"},
-            max_size=None,
-            ping_interval=20,
-            ping_timeout=20,
-            open_timeout=15,
-        ) as dg_ws:
+        async with websockets.connect(DEEPGRAM_AGENT_URL, **connect_kwargs) as dg_ws:
             await dg_ws.send(json.dumps(_build_settings_frame()))
 
             keepalive_task = asyncio.create_task(_keepalive(dg_ws))

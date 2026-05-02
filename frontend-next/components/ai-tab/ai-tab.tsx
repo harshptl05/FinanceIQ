@@ -53,7 +53,12 @@ import { useAuth } from '@/lib/auth-context';
 import type { PortfolioData } from '@/hooks/use-portfolio-data';
 import { fmtMoney, fmtPct, initials } from '@/lib/format';
 import { toast } from 'sonner';
-import { VoiceAgentPanel } from '@/components/voice-agent-panel';
+import {
+  VoiceComposerButton,
+  VoiceComposerProvider,
+  VoiceErrorBanner,
+  VoiceLiveStrip,
+} from '@/components/voice-composer-button';
 import {
   emitNavigate,
   emitOpenSettings,
@@ -471,6 +476,90 @@ export function AITab({ data }: { data: PortfolioData }) {
   const { user } = useAuth();
   const { setPreference: setThemePreference } = useTheme();
   const totalValue = data.summary?.total_value ?? 0;
+
+  // Voice agent action handler — fires when the agent finishes a tool. Some
+  // tools just dispatch a UI command (navigate / settings / theme), others
+  // mutate user data and need a portfolio refresh + a status toast. Lifted
+  // here (not inline on the panel) so VoiceComposerProvider can consume it.
+  const handleVoiceAction = useCallback(
+    (tool: string, result: unknown) => {
+      const r = (result ?? {}) as {
+        status?: string;
+        tab?: string;
+        theme?: string;
+        ticker?: string;
+        goal_name?: string;
+      };
+
+      // Pure UI tools → bridge events, no data refresh needed.
+      if (tool === 'navigate_ui' && r.tab) {
+        emitNavigate(r.tab as AppNavTab);
+        toast.message(`Showing the ${r.tab} tab`);
+        return;
+      }
+      if (tool === 'open_settings') {
+        emitOpenSettings();
+        toast.message('Opening settings');
+        return;
+      }
+      if (tool === 'set_theme' && r.theme) {
+        setThemePreference(r.theme as 'light' | 'dark' | 'system');
+        toast.success(`Theme set to ${r.theme}`);
+        return;
+      }
+
+      // Everything else mutated state → refresh + toast.
+      emitRefresh();
+      void data.refresh();
+
+      switch (tool) {
+        case 'rebalance_portfolio':
+          toast.success('Voice agent rebalanced your portfolio.');
+          break;
+        case 'buy_holding':
+          toast.success(
+            r.ticker
+              ? `Bought ${r.ticker} via voice.`
+              : 'Trade recorded by voice.',
+          );
+          break;
+        case 'sell_holding':
+        case 'delete_holding':
+          toast.success(
+            r.ticker
+              ? `${tool === 'delete_holding' ? 'Closed' : 'Sold'} ${r.ticker} via voice.`
+              : 'Position updated by voice.',
+          );
+          break;
+        case 'contribute_to_goal':
+          toast.success('Contribution recorded by voice.');
+          break;
+        case 'create_goal':
+          toast.success('New goal added by voice.');
+          break;
+        case 'delete_goal':
+          toast.success(
+            r.goal_name
+              ? `Deleted goal "${r.goal_name}".`
+              : 'Goal deleted by voice.',
+          );
+          break;
+        case 'sync_prices':
+          toast.success('Prices synced by voice.');
+          break;
+        case 'refresh_news':
+          toast.success('News refreshed by voice.');
+          break;
+        case 'mark_alerts_read':
+          toast.success('Alerts cleared.');
+          break;
+        case 'update_profile':
+          toast.success('Profile updated by voice.');
+          break;
+      }
+    },
+    [data, setThemePreference],
+  );
 
   const [timeMachineOpen, setTimeMachineOpen] = useState(false);
   const [timeMachineKey, setTimeMachineKey] = useState<string | undefined>();
@@ -900,93 +989,9 @@ export function AITab({ data }: { data: PortfolioData }) {
       </div>
 
       {/* Workspace */}
+      <VoiceComposerProvider onAction={handleVoiceAction}>
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto pr-2" ref={scrollRef}>
-          {panel === 'home' && (
-            <VoiceAgentPanel
-              className="mb-6"
-              onAction={(tool, result) => {
-                // The agent finished a tool. Decide whether to refresh data,
-                // dispatch a UI command, or both.
-                const r = (result ?? {}) as {
-                  status?: string;
-                  tab?: string;
-                  theme?: string;
-                  ticker?: string;
-                  goal_name?: string;
-                };
-
-                // Pure UI tools → bridge events, no data refresh needed.
-                if (tool === 'navigate_ui' && r.tab) {
-                  emitNavigate(r.tab as AppNavTab);
-                  toast.message(`Showing the ${r.tab} tab`);
-                  return;
-                }
-                if (tool === 'open_settings') {
-                  emitOpenSettings();
-                  toast.message('Opening settings');
-                  return;
-                }
-                if (tool === 'set_theme' && r.theme) {
-                  setThemePreference(
-                    r.theme as 'light' | 'dark' | 'system',
-                  );
-                  toast.success(`Theme set to ${r.theme}`);
-                  return;
-                }
-
-                // Everything else mutated state → refresh + toast.
-                emitRefresh();
-                void data.refresh();
-
-                switch (tool) {
-                  case 'rebalance_portfolio':
-                    toast.success('Voice agent rebalanced your portfolio.');
-                    break;
-                  case 'buy_holding':
-                    toast.success(
-                      r.ticker
-                        ? `Bought ${r.ticker} via voice.`
-                        : 'Trade recorded by voice.',
-                    );
-                    break;
-                  case 'sell_holding':
-                  case 'delete_holding':
-                    toast.success(
-                      r.ticker
-                        ? `${tool === 'delete_holding' ? 'Closed' : 'Sold'} ${r.ticker} via voice.`
-                        : 'Position updated by voice.',
-                    );
-                    break;
-                  case 'contribute_to_goal':
-                    toast.success('Contribution recorded by voice.');
-                    break;
-                  case 'create_goal':
-                    toast.success('New goal added by voice.');
-                    break;
-                  case 'delete_goal':
-                    toast.success(
-                      r.goal_name
-                        ? `Deleted goal "${r.goal_name}".`
-                        : 'Goal deleted by voice.',
-                    );
-                    break;
-                  case 'sync_prices':
-                    toast.success('Prices synced by voice.');
-                    break;
-                  case 'refresh_news':
-                    toast.success('News refreshed by voice.');
-                    break;
-                  case 'mark_alerts_read':
-                    toast.success('Alerts cleared.');
-                    break;
-                  case 'update_profile':
-                    toast.success('Profile updated by voice.');
-                    break;
-                }
-              }}
-            />
-          )}
           {panel === 'insights' ? (
             <InsightsPanel
               data={data}
@@ -1162,15 +1167,19 @@ export function AITab({ data }: { data: PortfolioData }) {
 
         {/* Input */}
         <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
+          {/* Voice live strip — only renders when a voice session is active. */}
+          <VoiceErrorBanner />
+          <VoiceLiveStrip />
+
           <div className="bg-gray-50 rounded-2xl p-3 flex items-center gap-2">
             <button
               onClick={startNewChat}
-              className="w-8 h-8 rounded-full bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center shrink-0"
               title="New chat"
             >
               <Plus className="w-4 h-4 text-gray-500" />
             </button>
-            <input 
+            <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -1181,19 +1190,22 @@ export function AITab({ data }: { data: PortfolioData }) {
               placeholder="Ask anything about your money. The advisor sees your real holdings and goals."
               className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-gray-400 disabled:opacity-50"
             />
+            {/* Mic — ChatGPT/Claude style. Click to start/stop voice chat. */}
+            <VoiceComposerButton disabled={busy} />
             <button
               onClick={() => void send()}
               disabled={busy || !input.trim()}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition shrink-0 ${
                 busy || !input.trim()
                   ? 'bg-gray-300 text-white cursor-not-allowed'
                   : 'bg-black text-white hover:bg-gray-800'
               }`}
+              title="Send"
             >
               {busy ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-              <ArrowUp className="w-4 h-4" />
+                <ArrowUp className="w-4 h-4" />
               )}
             </button>
           </div>
@@ -1211,6 +1223,7 @@ export function AITab({ data }: { data: PortfolioData }) {
           </div>
         </div>
       </div>
+      </VoiceComposerProvider>
 
       <TimeMachineDialog
         open={timeMachineOpen}

@@ -7,21 +7,10 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 next.user-config.*
 
-# Environment variables (never commit secrets)
-.env
+# Environment variables
 .env*.local
 
 # Common ignores
-node_modules/
+node_modules
 .next/
-dist/
-.vite/
 .DS_Store
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-.venv/
-venv/

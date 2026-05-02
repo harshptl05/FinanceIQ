@@ -211,224 +211,225 @@
  * touching every file, this layer remaps those Tailwind utility classes
  * to the CSS-variable palette above when `<html class="dark">` is set.
  *
- * Two critical rules to call out:
+ * CRITICAL — these rules are intentionally NOT wrapped in @layer base:
+ * Tailwind v4 emits `.bg-white` inside @layer utilities. In the cascade,
+ * layered utilities can override layered base rules even when our selector
+ * has higher specificity, which left cards literally white while body text
+ * used the dark palette (unreadable white-on-white). Unlayered CSS wins over
+ * any @layer, so this block must stay outside @layer { … }.
  *
- *   1. EVERY surface-background rule (`.dark .bg-white`, `.dark .bg-gray-50`,
- *      etc) ALSO sets `color: var(--text-primary)`. This guarantees that
- *      values without explicit text-* classes (like the "$0.00" cash value
- *      in dashboard cards) inherit a readable color rather than the dark
- *      page color leaking through.
+ *   1. EVERY surface-background rule ALSO sets `color: var(--text-primary)` so
+ *      values without explicit text-* classes inherit readable copy.
  *
- *   2. Brand gradients (indigo→purple, gray-900→indigo-900) and explicit
- *      `text-white` are NOT touched — they look great on dark and provide
- *      the visual focal points.
+ *   2. Brand gradients and explicit `text-white` are NOT touched.
  * ------------------------------------------------------------------------- */
-@layer base {
-  html.dark {
-    color-scheme: dark;
-  }
 
-  /* ===== Page chrome ====================================================== */
-  .dark body,
-  .dark html {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-  }
-  .dark .min-h-screen.bg-white {
-    background-color: var(--bg-primary);
-  }
-  .dark main {
-    background-color: transparent;
-  }
+html.dark {
+  color-scheme: dark;
+}
 
-  /* ===== Surfaces (background + force text color) ========================= */
-  /* Cards */
-  .dark .bg-white {
-    background-color: var(--bg-card);
-    color: var(--text-primary);
-  }
-  .dark .bg-white\/85 {
-    background-color: var(--nav-bg);
-    color: var(--text-primary);
-  }
-  .dark .bg-white\/80 { background-color: rgba(22, 22, 31, 0.8); color: var(--text-primary); }
-  .dark .bg-white\/70 { background-color: rgba(22, 22, 31, 0.7); color: var(--text-primary); }
-  .dark .bg-white\/60 { background-color: rgba(22, 22, 31, 0.6); color: var(--text-primary); }
-  .dark .bg-white\/90 { background-color: rgba(22, 22, 31, 0.9); color: var(--text-primary); }
+/* ===== Page chrome ====================================================== */
+html.dark body,
+html.dark html {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+html.dark .min-h-screen.bg-white {
+  background-color: var(--bg-primary);
+}
+
+html.dark main {
+  background-color: transparent;
+}
+
+/* ===== Surfaces (background + force text color) ========================= */
+/* Cards */
+html.dark .bg-white {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+html.dark .bg-white\/85 {
+  background-color: var(--nav-bg);
+  color: var(--text-primary);
+}
+html.dark .bg-white\/80 { background-color: rgba(22, 22, 31, 0.8); color: var(--text-primary); }
+html.dark .bg-white\/70 { background-color: rgba(22, 22, 31, 0.7); color: var(--text-primary); }
+html.dark .bg-white\/60 { background-color: rgba(22, 22, 31, 0.6); color: var(--text-primary); }
+html.dark .bg-white\/90 { background-color: rgba(22, 22, 31, 0.9); color: var(--text-primary); }
 
   /* Soft inset panels */
-  .dark .bg-gray-50 {
+html.dark .bg-gray-50 {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
   }
-  .dark .bg-gray-50\/60 {
+html.dark .bg-gray-50\/60 {
     background-color: rgba(17, 17, 24, 0.6);
     color: var(--text-primary);
   }
   /* Pill nav background, dropdown wells, hover targets */
-  .dark .bg-gray-100 {
+html.dark .bg-gray-100 {
     background-color: var(--bg-tertiary);
     color: var(--text-primary);
   }
-  .dark .bg-gray-200 {
+html.dark .bg-gray-200 {
     background-color: var(--bg-card-hover);
     color: var(--text-primary);
   }
 
   /* Borders */
-  .dark .border-gray-100      { border-color: var(--border-primary); }
-  .dark .border-gray-200      { border-color: var(--border-primary); }
-  .dark .border-gray-200\/80  { border-color: rgba(42, 42, 56, 0.8); }
-  .dark .border-gray-300      { border-color: var(--border-secondary); }
-  .dark .divide-gray-100 > * + * { border-color: var(--border-primary); }
+html.dark .border-gray-100      { border-color: var(--border-primary); }
+html.dark .border-gray-200      { border-color: var(--border-primary); }
+html.dark .border-gray-200\/80  { border-color: rgba(42, 42, 56, 0.8); }
+html.dark .border-gray-300      { border-color: var(--border-secondary); }
+html.dark .divide-gray-100 > * + * { border-color: var(--border-primary); }
 
   /* ===== Text scale ======================================================= */
-  .dark .text-gray-900 { color: var(--text-primary); }
-  .dark .text-gray-800 { color: var(--text-primary); }
-  .dark .text-gray-700 { color: var(--text-primary); }
-  .dark .text-gray-600 { color: var(--text-secondary); }
-  .dark .text-gray-500 { color: var(--text-secondary); }
-  .dark .text-gray-400 { color: var(--text-tertiary); }
+html.dark .text-gray-900 { color: var(--text-primary); }
+html.dark .text-gray-800 { color: var(--text-primary); }
+html.dark .text-gray-700 { color: var(--text-primary); }
+html.dark .text-gray-600 { color: var(--text-secondary); }
+html.dark .text-gray-500 { color: var(--text-secondary); }
+html.dark .text-gray-400 { color: var(--text-tertiary); }
 
   /* ===== bg-black text-white — invert in dark so it stays high-contrast === */
-  .dark .bg-black {
+html.dark .bg-black {
     background-color: var(--text-primary);
     color: var(--text-inverse);
   }
-  .dark .text-black {
+html.dark .text-black {
     color: var(--text-primary);
   }
-  .dark .hover\:bg-gray-800:hover {
+html.dark .hover\:bg-gray-800:hover {
     background-color: #ddd;
     color: var(--text-inverse);
   }
 
   /* ===== Hovers =========================================================== */
-  .dark .hover\:bg-gray-50:hover  { background-color: var(--bg-card-hover); }
-  .dark .hover\:bg-gray-100:hover { background-color: var(--bg-card-hover); }
-  .dark .hover\:bg-gray-200:hover { background-color: #2a2a36; }
+html.dark .hover\:bg-gray-50:hover  { background-color: var(--bg-card-hover); }
+html.dark .hover\:bg-gray-100:hover { background-color: var(--bg-card-hover); }
+html.dark .hover\:bg-gray-200:hover { background-color: #2a2a36; }
 
   /* ===== Pill nav ========================================================= */
-  .dark nav.bg-gray-100 {
+html.dark nav.bg-gray-100 {
     background-color: var(--bg-tertiary);
   }
-  .dark nav button.bg-black {
+html.dark nav button.bg-black {
     background-color: var(--text-primary);
     color: var(--text-inverse);
   }
 
   /* ===== Inputs =========================================================== */
-  .dark input,
-  .dark textarea,
-  .dark select { color-scheme: dark; }
-  .dark input::placeholder,
-  .dark textarea::placeholder { color: var(--text-tertiary); }
-  .dark .bg-transparent { color: var(--text-primary); }
+html.dark input,
+html.dark textarea,
+html.dark select { color-scheme: dark; }
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: var(--text-tertiary); }
+html.dark .bg-transparent { color: var(--text-primary); }
 
-  .dark input[type='text'],
-  .dark input[type='email'],
-  .dark input[type='password'],
-  .dark input[type='number'],
-  .dark input[type='search'],
-  .dark input[type='date'],
-  .dark textarea,
-  .dark select {
+html.dark input[type='text'],
+html.dark input[type='email'],
+html.dark input[type='password'],
+html.dark input[type='number'],
+html.dark input[type='search'],
+html.dark input[type='date'],
+html.dark textarea,
+html.dark select {
     background-color: var(--bg-input);
     border-color: var(--border-primary);
     color: var(--text-primary);
   }
 
   /* ===== Soft tinted alerts ============================================== */
-  .dark .bg-amber-50     { background-color: var(--warning-bg);  color: var(--warning); }
-  .dark .bg-rose-50      { background-color: var(--negative-bg); color: var(--negative); }
-  .dark .bg-rose-50\/40  { background-color: rgba(44, 10, 10, 0.4); }
-  .dark .bg-emerald-50   { background-color: var(--positive-bg); color: var(--positive); }
-  .dark .bg-indigo-50    { background-color: #1a1a2e;            color: #c4b5fd; }
-  .dark .bg-indigo-50\/60 { background-color: rgba(26, 26, 46, 0.6); }
-  .dark .bg-blue-50      { background-color: #102036;            color: #93c5fd; }
-  .dark .bg-purple-50    { background-color: var(--accent-purple-light); color: var(--accent-purple-text); }
-  .dark .bg-green-50     { background-color: var(--positive-bg); color: var(--positive); }
-  .dark .bg-orange-50    { background-color: #2c1a00;            color: #fdba74; }
-  .dark .bg-cyan-50      { background-color: #0a2730;            color: #67e8f9; }
-  .dark .bg-yellow-100   { background-color: #2c1a00;            color: var(--warning); }
+html.dark .bg-amber-50     { background-color: var(--warning-bg);  color: var(--warning); }
+html.dark .bg-rose-50      { background-color: var(--negative-bg); color: var(--negative); }
+html.dark .bg-rose-50\/40  { background-color: rgba(44, 10, 10, 0.4); }
+html.dark .bg-emerald-50   { background-color: var(--positive-bg); color: var(--positive); }
+html.dark .bg-indigo-50    { background-color: #1a1a2e;            color: #c4b5fd; }
+html.dark .bg-indigo-50\/60 { background-color: rgba(26, 26, 46, 0.6); }
+html.dark .bg-blue-50      { background-color: #102036;            color: #93c5fd; }
+html.dark .bg-purple-50    { background-color: var(--accent-purple-light); color: var(--accent-purple-text); }
+html.dark .bg-green-50     { background-color: var(--positive-bg); color: var(--positive); }
+html.dark .bg-orange-50    { background-color: #2c1a00;            color: #fdba74; }
+html.dark .bg-cyan-50      { background-color: #0a2730;            color: #67e8f9; }
+html.dark .bg-yellow-100   { background-color: #2c1a00;            color: var(--warning); }
 
   /* Tinted borders */
-  .dark .border-amber-100   { border-color: #5e4015; }
-  .dark .border-amber-200   { border-color: #7c5520; }
-  .dark .border-rose-100    { border-color: #5b2228; }
-  .dark .border-rose-200    { border-color: #743036; }
-  .dark .border-emerald-100 { border-color: #1f5d4a; }
-  .dark .border-emerald-200 { border-color: #2a7860; }
-  .dark .border-indigo-100  { border-color: #2e3068; }
-  .dark .border-indigo-200  { border-color: #3d4080; }
-  .dark .border-purple-100  { border-color: #3a2a5e; }
-  .dark .border-purple-200  { border-color: #4d3578; }
-  .dark .border-purple-200\/70 { border-color: rgba(77, 53, 120, 0.7); }
-  .dark .border-blue-100    { border-color: #1e3a6e; }
-  .dark .border-blue-200    { border-color: #284a86; }
+html.dark .border-amber-100   { border-color: #5e4015; }
+html.dark .border-amber-200   { border-color: #7c5520; }
+html.dark .border-rose-100    { border-color: #5b2228; }
+html.dark .border-rose-200    { border-color: #743036; }
+html.dark .border-emerald-100 { border-color: #1f5d4a; }
+html.dark .border-emerald-200 { border-color: #2a7860; }
+html.dark .border-indigo-100  { border-color: #2e3068; }
+html.dark .border-indigo-200  { border-color: #3d4080; }
+html.dark .border-purple-100  { border-color: #3a2a5e; }
+html.dark .border-purple-200  { border-color: #4d3578; }
+html.dark .border-purple-200\/70 { border-color: rgba(77, 53, 120, 0.7); }
+html.dark .border-blue-100    { border-color: #1e3a6e; }
+html.dark .border-blue-200    { border-color: #284a86; }
 
   /* Tinted text accents */
-  .dark .text-indigo-600  { color: #a5b4fc; }
-  .dark .text-indigo-700  { color: #c7d2fe; }
-  .dark .text-purple-600  { color: var(--accent-purple-text); }
-  .dark .text-purple-700  { color: var(--accent-purple-text); }
-  .dark .text-amber-600   { color: var(--warning); }
-  .dark .text-amber-700   { color: var(--warning); }
-  .dark .text-amber-800   { color: #fcd34d; }
-  .dark .text-amber-900   { color: #fde68a; }
-  .dark .text-rose-500    { color: var(--negative); }
-  .dark .text-rose-600    { color: var(--negative); }
-  .dark .text-rose-700    { color: #fca5a5; }
-  .dark .text-rose-800    { color: #fecaca; }
-  .dark .text-emerald-600 { color: var(--positive); }
-  .dark .text-emerald-700 { color: #6ee7b7; }
-  .dark .text-green-600   { color: var(--positive); }
-  .dark .text-blue-600    { color: #60a5fa; }
+html.dark .text-indigo-600  { color: #a5b4fc; }
+html.dark .text-indigo-700  { color: #c7d2fe; }
+html.dark .text-purple-600  { color: var(--accent-purple-text); }
+html.dark .text-purple-700  { color: var(--accent-purple-text); }
+html.dark .text-amber-600   { color: var(--warning); }
+html.dark .text-amber-700   { color: var(--warning); }
+html.dark .text-amber-800   { color: #fcd34d; }
+html.dark .text-amber-900   { color: #fde68a; }
+html.dark .text-rose-500    { color: var(--negative); }
+html.dark .text-rose-600    { color: var(--negative); }
+html.dark .text-rose-700    { color: #fca5a5; }
+html.dark .text-rose-800    { color: #fecaca; }
+html.dark .text-emerald-600 { color: var(--positive); }
+html.dark .text-emerald-700 { color: #6ee7b7; }
+html.dark .text-green-600   { color: var(--positive); }
+html.dark .text-blue-600    { color: #60a5fa; }
 
   /* ===== Shadows (softer on dark) ======================================== */
-  .dark .shadow-sm   { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.6); }
-  .dark .shadow      { box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.6); }
-  .dark .shadow-md   { box-shadow: 0 4px 8px -2px rgb(0 0 0 / 0.55); }
-  .dark .shadow-lg   { box-shadow: 0 10px 20px -4px rgb(0 0 0 / 0.6); }
-  .dark .shadow-xl   { box-shadow: 0 16px 32px -6px rgb(0 0 0 / 0.7); }
+html.dark .shadow-sm   { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.6); }
+html.dark .shadow      { box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.6); }
+html.dark .shadow-md   { box-shadow: 0 4px 8px -2px rgb(0 0 0 / 0.55); }
+html.dark .shadow-lg   { box-shadow: 0 10px 20px -4px rgb(0 0 0 / 0.6); }
+html.dark .shadow-xl   { box-shadow: 0 16px 32px -6px rgb(0 0 0 / 0.7); }
 
   /* ===== Recharts ========================================================= */
-  .dark .recharts-cartesian-axis-tick-value,
-  .dark .recharts-text {
+html.dark .recharts-cartesian-axis-tick-value,
+html.dark .recharts-text {
     fill: var(--text-tertiary);
   }
-  .dark .recharts-cartesian-axis-line,
-  .dark .recharts-cartesian-axis-tick-line,
-  .dark .recharts-cartesian-grid-horizontal line,
-  .dark .recharts-cartesian-grid-vertical line {
+html.dark .recharts-cartesian-axis-line,
+html.dark .recharts-cartesian-axis-tick-line,
+html.dark .recharts-cartesian-grid-horizontal line,
+html.dark .recharts-cartesian-grid-vertical line {
     stroke: var(--border-primary);
   }
-  .dark .recharts-tooltip-wrapper .recharts-default-tooltip {
+html.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
     background-color: var(--bg-card) !important;
     border-color: var(--border-primary) !important;
     color: var(--text-primary) !important;
   }
 
   /* ===== Sonner toast ==================================================== */
-  .dark [data-sonner-toaster] {
+html.dark [data-sonner-toaster] {
     --normal-bg: var(--bg-card);
     --normal-text: var(--text-primary);
     --normal-border: var(--border-primary);
   }
 
   /* ===== Scrollbars ======================================================= */
-  .dark ::-webkit-scrollbar          { width: 8px; height: 8px; }
-  .dark ::-webkit-scrollbar-track    { background: var(--bg-secondary); }
-  .dark ::-webkit-scrollbar-thumb    { background: var(--border-secondary); border-radius: 4px; }
-  .dark ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
-  .dark { scrollbar-color: var(--border-secondary) var(--bg-secondary); }
+html.dark ::-webkit-scrollbar          { width: 8px; height: 8px; }
+html.dark ::-webkit-scrollbar-track    { background: var(--bg-secondary); }
+html.dark ::-webkit-scrollbar-thumb    { background: var(--border-secondary); border-radius: 4px; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+html.dark { scrollbar-color: var(--border-secondary) var(--bg-secondary); }
 
   /* ===== Selection / focus =============================================== */
-  .dark ::selection {
+html.dark ::selection {
     background-color: rgba(139, 92, 246, 0.4);
     color: var(--text-primary);
   }
-}
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {

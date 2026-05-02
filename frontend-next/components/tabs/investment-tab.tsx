@@ -30,6 +30,7 @@ import { RadialBarChart } from '@/components/radial-bar-chart';
 import { CardSpinner, EmptyState } from '@/components/data-state';
 import { StockDetailDialog } from '@/components/stock-detail-dialog';
 import { TickerLogo } from '@/components/ticker-logo';
+import { LiveMarketCard } from '@/components/live-market-card';
 
 type Period = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 type ProfitPeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
@@ -227,6 +228,9 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
   return (
     <>
       <TopMovers movers={topMovers} onSelect={setActiveTicker} />
+
+      {/* Live Market — synthetic ticking chart that drives live P&L */}
+      <LiveMarketCard holdings={holdings} />
 
       {/* Hero Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

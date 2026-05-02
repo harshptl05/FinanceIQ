@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   api,
   type Holding,
@@ -13,6 +13,7 @@ import {
   type CalibrationStats,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useLivePrices } from '@/lib/live-prices';
 
 export type PortfolioData = {
   loading: boolean;
@@ -98,12 +99,44 @@ export function usePortfolioData(): PortfolioData {
     (h) => Number(h.current_price ?? 0) > 0 && Number(h.current_value ?? 0) > 0,
   );
 
+  // ---- Live-price overlay ----
+  // When the MarketChart simulation is running, push the simulated tick
+  // prices through holdings so current_value, summary.total_value, P&L,
+  // and allocation %s all refresh in sync with the chart. When no live
+  // ticks have arrived for a ticker yet, we leave the API price intact.
+  const { prices: livePrices, isLive } = useLivePrices();
+
+  const overlaidHoldings = useMemo<Holding[]>(() => {
+    if (!isLive || Object.keys(livePrices).length === 0) return holdings;
+    return holdings.map((h) => {
+      const live = livePrices[h.ticker];
+      if (!live || !h.shares) return h;
+      const shares = Number(h.shares);
+      return {
+        ...h,
+        current_price: live,
+        current_value: shares * live,
+      };
+    });
+  }, [holdings, livePrices, isLive]);
+
+  const overlaidSummary = useMemo<PortfolioSummary | null>(() => {
+    if (!summary) return summary;
+    if (!isLive || Object.keys(livePrices).length === 0) return summary;
+    const total = overlaidHoldings.reduce(
+      (acc, h) => acc + Number(h.current_value ?? 0),
+      0,
+    );
+    if (Math.abs(total - Number(summary.total_value ?? 0)) < 0.01) return summary;
+    return { ...summary, total_value: total };
+  }, [summary, overlaidHoldings, livePrices, isLive]);
+
   return {
     loading,
     error,
-    summary,
+    summary: overlaidSummary,
     history,
-    holdings,
+    holdings: overlaidHoldings,
     goals,
     alerts,
     news,

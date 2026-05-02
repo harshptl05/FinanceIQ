@@ -28,10 +28,7 @@ import {
 import { assetColor, assetLabel, fmtMoney, fmtPct } from '@/lib/format';
 import { useLivePrices } from '@/lib/live-prices';
 import { useChartMode } from '@/lib/chart-mode';
-import {
-  generateSyntheticHistory,
-  volatilityFor,
-} from '@/lib/market-data';
+import { periodStartPriceFor } from '@/lib/market-data';
 
 type LivePeriod = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
 
@@ -158,17 +155,19 @@ export function TickerPreviewDialog({
     const a = getAnchor(fullResult.ticker, livePrice);
     if (a <= 0) return { dollarChange: 0, pctChange: 0, anchor: 0 };
     const cfg = PERIOD_CONFIG[period];
-    const vol = volatilityFor(fullResult.asset_class);
-    const history = generateSyntheticHistory(
+    // Same deterministic formula MarketChart uses for its leftmost bar,
+    // so the displayed % aligns 1:1 with what the chart visually shows.
+    const periodStart = periodStartPriceFor(
       fullResult.ticker,
       a,
       cfg.bars,
-      vol,
       cfg.barSec,
     );
-    const periodStart = history[0]?.open ?? a;
+    if (periodStart <= 0) {
+      return { dollarChange: 0, pctChange: 0, anchor: a };
+    }
     const dollar = livePrice - periodStart;
-    const pct = periodStart > 0 ? (dollar / periodStart) * 100 : 0;
+    const pct = (dollar / periodStart) * 100;
     return { dollarChange: dollar, pctChange: pct, anchor: a };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullResult, livePrice, period, lockedToLine]);

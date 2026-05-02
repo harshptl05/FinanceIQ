@@ -22,10 +22,7 @@ import {
 import { useLivePrices } from '@/lib/live-prices';
 import { useChartMode } from '@/lib/chart-mode';
 import { isMutualFund } from '@/lib/funds';
-import {
-  generateSyntheticHistory,
-  volatilityFor,
-} from '@/lib/market-data';
+import { periodStartPriceFor } from '@/lib/market-data';
 import type { Holding } from '@/lib/api';
 
 interface Props {
@@ -131,8 +128,12 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   };
 
   /** Returns {periodStart, dollar, pct} for the given ticker against the
-   *  active period. periodStart is the *open* of the leftmost synthetic
-   *  bar — exactly what the chart renders on the left edge. */
+   *  active period. periodStart is computed from the same deterministic
+   *  formula MarketChart's history generator uses for its leftmost bar
+   *  (periodStartPriceFor), so the displayed % matches what the chart
+   *  visually shows. Live ticks move `currentPrice`; periodStart is
+   *  fixed to the (ticker, period, anchor) triple, so the % updates
+   *  in real time as ticks arrive. */
   const computeChange = (
     ticker: string,
     currentPrice: number,
@@ -143,8 +144,8 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
     }
     // Funds + cash don't have a synthetic intraday history (they're
     // rendered as a flat NAV line) — change relative to the holding's
-    // current price is meaningless. Show 0 here; the dialog/UI knows
-    // to swap the caption to "Last NAV — next update 4:00 PM ET".
+    // current price is meaningless. Show 0 here; the UI swaps the
+    // caption to "Last NAV — next update 4:00 PM ET".
     if (
       isMutualFund(ticker, assetClass ?? null) ||
       assetClass === 'cash'
@@ -154,17 +155,17 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
     const anchor = getAnchor(ticker, currentPrice);
     if (anchor <= 0) return { periodStart: 0, dollar: 0, pct: 0 };
     const cfg = PERIOD_CONFIG[period];
-    const vol = volatilityFor(assetClass);
-    const history = generateSyntheticHistory(
+    const periodStart = periodStartPriceFor(
       ticker,
       anchor,
       cfg.bars,
-      vol,
       cfg.barSec,
     );
-    const periodStart = history[0]?.open ?? anchor;
+    if (periodStart <= 0) {
+      return { periodStart: 0, dollar: 0, pct: 0 };
+    }
     const dollar = currentPrice - periodStart;
-    const pct = periodStart > 0 ? (dollar / periodStart) * 100 : 0;
+    const pct = (dollar / periodStart) * 100;
     return { periodStart, dollar, pct };
   };
 

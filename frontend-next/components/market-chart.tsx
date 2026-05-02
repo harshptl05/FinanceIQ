@@ -19,7 +19,7 @@ import {
   volatilityFor,
   type Candle,
 } from '@/lib/market-data';
-import { useStableSetPrice } from '@/lib/live-prices';
+import { useLivePrices, useStableSetPrice } from '@/lib/live-prices';
 import { navHistory } from '@/lib/funds';
 
 export type MarketChartKind = 'candlestick' | 'line';
@@ -39,6 +39,10 @@ interface Props {
   intervalMs?: number;
   /** Number of historical bars to seed the chart with. */
   historyBars?: number;
+  /** Seconds per bar — controls the time axis resolution.
+   *  60 = 1m candles, 600 = 10m, 3600 = 1h, 86400 = 1d. The simulated
+   *  tick loop also advances by this amount each interval. */
+  barSec?: number;
   /** "candlestick" for stocks, "line" for cash / money-market funds. */
   kind?: MarketChartKind;
   /** "live" for stocks/ETFs (intraday ticking), "daily-nav" for mutual
@@ -70,6 +74,7 @@ export function MarketChart({
   height = 260,
   intervalMs = 2000,
   historyBars = 180,
+  barSec = 60,
   kind = 'candlestick',
   mode = 'live',
   fundCategory,
@@ -80,6 +85,7 @@ export function MarketChart({
   onTickRef.current = onTick;
 
   const setLivePrice = useStableSetPrice();
+  const { resetBase } = useLivePrices();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -185,7 +191,14 @@ export function MarketChart({
       basePrice,
       historyBars,
       vol,
+      barSec,
     );
+
+    // Re-anchor the "since open" base for this ticker. Switching the period
+    // re-mounts the chart (key changes upstream); resetting here means the
+    // next setLivePrice call captures a fresh anchor that aligns with the
+    // newly-displayed period start.
+    resetBase(ticker);
 
     if (effectiveKind === 'candlestick') {
       const data: CandlestickData[] = history.map((c) => ({
@@ -228,7 +241,7 @@ export function MarketChart({
     ro.observe(container);
 
     const interval = setInterval(() => {
-      const next = generateNextCandle(lastCandle, vol);
+      const next = generateNextCandle(lastCandle, vol, barSec);
       if (effectiveKind === 'candlestick') {
         (series as ISeriesApi<'Candlestick'>).update({
           time: next.time as UTCTimestamp,
@@ -253,7 +266,7 @@ export function MarketChart({
       ro.disconnect();
       chart.remove();
     };
-    // setLivePrice is stable; deliberately omitted to avoid re-init.
+    // setLivePrice / resetBase are stable; deliberately omitted to avoid re-init.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     ticker,
@@ -263,6 +276,7 @@ export function MarketChart({
     height,
     intervalMs,
     historyBars,
+    barSec,
     kind,
     mode,
     fundCategory,

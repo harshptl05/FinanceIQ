@@ -27,10 +27,34 @@ interface Props {
   initialTicker?: string;
 }
 
+/** Period selector configuration.
+ *
+ *  Each entry controls how the chart is seeded:
+ *    bars    — number of historical bars to draw on first render
+ *    barSec  — seconds per bar; also the tick advance, so live ticks
+ *              naturally fall on the same time grid as the history.
+ *
+ *  Live ticks fire every 2s regardless of period — for short periods
+ *  that's an intraday-feel; for longer periods each "day" of fake history
+ *  zips by every 2s, which keeps the demo lively across the board. */
+type LivePeriod = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
+
+const PERIOD_CONFIG: Record<LivePeriod, { bars: number; barSec: number }> = {
+  '1D': { bars: 180, barSec: 60 },        // 1-min bars, ~3h history
+  '1W': { bars: 168, barSec: 600 },       // 10-min bars, ~28h
+  '1M': { bars: 168, barSec: 3600 },      // 1-hour bars, ~7d
+  '3M': { bars: 90, barSec: 86400 },      // daily bars, ~3mo
+  '6M': { bars: 130, barSec: 86400 },     // daily bars, ~6mo
+  '1Y': { bars: 252, barSec: 86400 },     // daily bars, ~1y
+};
+
+const PERIOD_KEYS: LivePeriod[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
+
 /**
  * Live Market hero card for the Investment tab.
  *
  *  • Top: row of selectable holdings (logo + ticker + live price + change)
+ *  • Period selector (1D / 1W / 1M / 3M / 6M / 1Y) above the chart
  *  • Body: a 320-tall lightweight-charts pane that ticks every 2 seconds
  *  • Bottom: tiny "LIVE · last tick Xs ago" indicator + pause toggle
  *
@@ -39,6 +63,7 @@ interface Props {
  * store, so portfolio value / P&L on the rest of the page stays in sync.
  */
 export function LiveMarketCard({ holdings, initialTicker }: Props) {
+  const [period, setPeriod] = useState<LivePeriod>('1D');
   const eligible = useMemo(
     () =>
       holdings
@@ -239,7 +264,8 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
                   <>
                     {positive ? '+' : '−'}
                     {fmtMoney(Math.abs(dollarChange))} (
-                    {fmtPct(Math.abs(pctChange), { decimals: 2 })}) since open
+                    {fmtPct(Math.abs(pctChange), { decimals: 2 })}){' '}
+                    {period === '1D' ? 'since open' : `over ${period}`}
                   </>
                 )}
               </p>
@@ -265,19 +291,59 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
           </div>
         </div>
 
-        {/* The chart itself — keyed by ticker + mode so a new MarketChart
-            instance mounts cleanly when the user switches selection or
-            toggles between live/NAV mode. */}
+        {/* Period selector — only meaningful for live tickers. Mutual funds
+            stay in NAV mode (90-day daily history) regardless. */}
+        {!isFund && (
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider font-medium">
+              Timeline
+            </p>
+            <div
+              role="tablist"
+              aria-label="Live market period"
+              className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 p-0.5"
+            >
+              {PERIOD_KEYS.map((p) => {
+                const isOn = p === period;
+                return (
+                  <button
+                    key={p}
+                    role="tab"
+                    aria-selected={isOn}
+                    onClick={() => setPeriod(p)}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition tabular-nums ${
+                      isOn
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* The chart itself — keyed by ticker + mode + period so a new
+            MarketChart instance mounts cleanly when the user switches
+            selection, toggles live/NAV mode, or changes the timeline.
+            We anchor basePrice to the live price so the seeded history
+            mean-reverts to the current quote, keeping period transitions
+            visually continuous. resetBase(ticker) inside MarketChart then
+            re-anchors "since open" to the next live tick. */}
         <MarketChart
-          key={`${active}-${isFund ? 'nav' : 'live'}`}
+          key={`${active}-${isFund ? 'nav' : 'live'}-${period}`}
           ticker={active}
-          basePrice={basePrice}
+          basePrice={isFund ? basePrice : livePrice}
           assetClass={activeHolding.asset_class}
           color={accent}
           kind={kind}
           mode={isFund ? 'daily-nav' : 'live'}
           height={300}
           intervalMs={2000}
+          historyBars={PERIOD_CONFIG[period].bars}
+          barSec={PERIOD_CONFIG[period].barSec}
         />
 
         <p className="text-[10px] text-gray-400 mt-3 text-center">

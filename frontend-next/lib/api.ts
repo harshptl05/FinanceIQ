@@ -151,6 +151,12 @@ export type ApplyRebalanceResult = {
   allocation: Record<string, number>;
   strategy_note: string;
   updated_holdings: number;
+  executed_trades?: Array<{
+    ticker?: string | null;
+    asset_class?: string | null;
+    action: 'buy' | 'sell';
+    amount: number;
+  }>;
 };
 
 export type Recommendation = {

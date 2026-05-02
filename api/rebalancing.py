@@ -403,16 +403,38 @@ async def apply_rebalanced_allocation(
 
     now_iso = datetime.now(timezone.utc).isoformat()
 
+    # Track every executed trade so the UI can show "we did X for you"
+    # instead of just a generic "done" toast. Each entry mirrors the
+    # rec.recommended_trades shape so the frontend can reuse its renderer.
+    executed_trades: list[dict] = []
+
+    # Map current-holdings by id so we can compute the dollar delta of
+    # each update (post-shares × price minus prior current_value).
+    holding_by_id = {h["id"]: h for h in holdings}
+
     for u in updates:
         uid = u["id"]
+        prior = holding_by_id.get(uid) or {}
+        prior_value = float(prior.get("current_value") or 0)
+        new_value = float(u["current_value"])
+        delta = new_value - prior_value
         payload = {
             "shares": u["shares"],
-            "current_value": u["current_value"],
+            "current_value": new_value,
             "last_updated": now_iso,
         }
         if u.get("current_price"):
             payload["current_price"] = u["current_price"]
         db.table("holdings").update(payload).eq("id", uid).eq("user_id", user_id).execute()
+        if abs(delta) >= 1.0:
+            executed_trades.append(
+                {
+                    "ticker": prior.get("ticker"),
+                    "asset_class": prior.get("asset_class"),
+                    "action": "buy" if delta > 0 else "sell",
+                    "amount": round(abs(delta), 2),
+                }
+            )
 
     for ins in inserts:
         ticker = ins["ticker"].upper()
@@ -441,6 +463,14 @@ async def apply_rebalanced_allocation(
         except Exception:
             insert_payload.pop("goal_id", None)
             db.table("holdings").insert(insert_payload).execute()
+        executed_trades.append(
+            {
+                "ticker": ticker,
+                "asset_class": ins["asset_class"],
+                "action": "buy",
+                "amount": round(shares * price, 2),
+            }
+        )
 
     holdings_resp2 = db.table("holdings").select("*").eq("user_id", user_id).execute()
     holdings2 = holdings_resp2.data or []
@@ -485,6 +515,7 @@ async def apply_rebalanced_allocation(
         "allocation": allocation,
         "strategy_note": strategy_note,
         "updated_holdings": len(updates) + len(inserts),
+        "executed_trades": executed_trades,
     }
 
 

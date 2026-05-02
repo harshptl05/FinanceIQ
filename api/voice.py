@@ -370,7 +370,6 @@ async def _handle_function_call(
             }
         ]
 
-    responses = []
     for call in calls:
         name = call.get("name") or ""
         call_id = call.get("id") or call.get("function_call_id")
@@ -415,10 +414,18 @@ async def _handle_function_call(
         except Exception:
             pass
 
-        responses.append({"id": call_id, "name": name, "content": result_json})
-
-    # Send a single FunctionCallResponse covering every requested call.
-    if responses:
+        # Send the FunctionCallResponse Deepgram expects. The current Voice
+        # Agent API takes ONE message per call with { id, name, content } —
+        # batching them as `{ functions: [...] }` causes Deepgram to reply
+        # "Text message received from client did not match any of the formats
+        # we expect." (the user-visible error from the previous deploy).
         await dg_ws.send(
-            json.dumps({"type": "FunctionCallResponse", "functions": responses})
+            json.dumps(
+                {
+                    "type": "FunctionCallResponse",
+                    "id": call_id,
+                    "name": name,
+                    "content": result_json,
+                }
+            )
         )

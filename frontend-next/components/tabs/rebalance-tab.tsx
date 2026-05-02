@@ -13,7 +13,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { PortfolioData } from '@/hooks/use-portfolio-data';
-import type { Recommendation, TradeInstruction } from '@/lib/api';
+import type { Recommendation } from '@/lib/api';
 import { fmtMoney, fmtPct, assetColor, assetLabel } from '@/lib/format';
 import { EmptyState } from '@/components/data-state';
 import { api } from '@/lib/api';
@@ -28,15 +28,10 @@ function urgencyClass(u?: string | null) {
 type CardPhase =
   | 'recommendation'
   | 'choose_action'
-  | 'guided_trades'
+  | 'applying'
   | 'remind_confirmed'
   | 'dismissed_confirmed'
   | 'complete';
-
-function tradeTitle(trade: TradeInstruction) {
-  const verb = trade.action === 'sell' ? 'Sell' : 'Buy';
-  return `${verb} ${trade.name || trade.ticker}`;
-}
 
 function RecommendationCard({
   rec,
@@ -47,55 +42,39 @@ function RecommendationCard({
 }) {
   const [phase, setPhase] = useState<CardPhase>('recommendation');
   const [busy, setBusy] = useState(false);
-  const [loadingInstructions, setLoadingInstructions] = useState(false);
-  const [applying, setApplying] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [tradeInstructions, setTradeInstructions] = useState<TradeInstruction[]>(
-    [],
-  );
-  const [currentTradeIndex, setCurrentTradeIndex] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<
-    Record<number, number[]>
-  >({});
+  const [appliedTrades, setAppliedTrades] = useState<
+    Array<{ ticker?: string; action: string; amount: number }>
+  >([]);
   const [strategyNote, setStrategyNote] = useState<string | null>(null);
 
   const contentMuted =
     phase !== 'recommendation' && phase !== 'complete';
 
-  const toggleStep = (tradeIdx: number, stepIdx: number) => {
-    setCompletedSteps((prev) => {
-      const cur = prev[tradeIdx] ?? [];
-      const has = cur.includes(stepIdx);
-      const next = has
-        ? cur.filter((i) => i !== stepIdx)
-        : [...cur, stepIdx].sort((a, b) => a - b);
-      return { ...prev, [tradeIdx]: next };
-    });
-  };
-
-  const stepsCompleteFor = (tradeIdx: number) => {
-    const steps = tradeInstructions[tradeIdx]?.steps ?? [];
-    const done = new Set(completedSteps[tradeIdx] ?? []);
-    return steps.length > 0 && steps.every((_, i) => done.has(i));
-  };
-
   const onChooseRebalanceForMe = async () => {
-    setLoadingInstructions(true);
+    setBusy(true);
+    setPhase('applying');
     try {
-      const { instructions } =
-        await api.rebalancing.generateInstructions(rec.id);
-      if (!instructions?.length) {
-        toast.error('No instructions returned — try again.');
-        return;
-      }
-      setTradeInstructions(instructions);
-      setCurrentTradeIndex(0);
-      setCompletedSteps({});
-      setPhase('guided_trades');
+      // Actually apply the rebalance — this mutates real holdings server-side
+      // and returns the trades that were executed. No more 6-step manual
+      // walkthrough; the AI is supposed to *do it* for the user.
+      const res = await api.rebalancing.apply(rec.id);
+      setStrategyNote(res.strategy_note ?? null);
+      setAppliedTrades(
+        (res.executed_trades ?? rec.recommended_trades ?? []).map((t) => ({
+          ticker: t.ticker,
+          action: t.action,
+          amount: Number(t.amount ?? 0),
+        })),
+      );
+      await refresh();
+      setPhase('complete');
+      toast.success('Portfolio aligned with your target');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load guide');
+      toast.error(e instanceof Error ? e.message : 'Could not rebalance');
+      setPhase('choose_action');
     } finally {
-      setLoadingInstructions(false);
+      setBusy(false);
     }
   };
 
@@ -131,31 +110,7 @@ function RecommendationCard({
     }
   };
 
-  const onMarkTradeComplete = async () => {
-    if (!stepsCompleteFor(currentTradeIndex)) return;
-    if (currentTradeIndex < tradeInstructions.length - 1) {
-      setCurrentTradeIndex((i) => i + 1);
-      return;
-    }
-    setApplying(true);
-    try {
-      const res = await api.rebalancing.apply(rec.id);
-      setStrategyNote(res.strategy_note);
-      setPhase('complete');
-      toast.success('Portfolio aligned with your target');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not apply rebalance');
-    } finally {
-      setApplying(false);
-    }
-  };
-
   if (hidden) return null;
-
-  const currentTrade = tradeInstructions[currentTradeIndex];
-  const totalSteps = currentTrade?.steps?.length ?? 0;
-  const doneCount =
-    completedSteps[currentTradeIndex]?.length ?? 0;
 
   return (
     <div
@@ -260,21 +215,16 @@ function RecommendationCard({
               </p>
               <button
                 type="button"
-                disabled={loadingInstructions || busy}
+                disabled={busy}
                 onClick={onChooseRebalanceForMe}
                 className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white rounded-lg py-3 font-semibold hover:bg-purple-500 transition disabled:opacity-50"
               >
-                {loadingInstructions ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-5 h-5 shrink-0" />
-                )}
+                <Sparkles className="w-5 h-5 shrink-0" />
                 <span className="text-left flex-1">
                   <span className="block">Rebalance for me</span>
                   <span className="block text-xs font-normal opacity-90 mt-0.5">
-                    The AI will walk you through each trade step by step with
-                    plain English instructions tailored to your brokerage,
-                    then align your portfolio to your target mix.
+                    The AI will execute every trade and align your portfolio
+                    to your target mix instantly. No manual brokerage steps.
                   </span>
                 </span>
               </button>
@@ -313,107 +263,16 @@ function RecommendationCard({
             </div>
           )}
 
-          {phase === 'guided_trades' && tradeInstructions.length > 0 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <p className="text-sm font-semibold opacity-90">
-                Follow each trade in your brokerage — then we&apos;ll align your
-                portfolio here.
-              </p>
-
-              {tradeInstructions.map((trade, ti) => {
-                const doneTrade = ti < currentTradeIndex;
-                const active = ti === currentTradeIndex;
-                const locked = ti > currentTradeIndex;
-                if (locked) return null;
-
-                return (
-                  <div
-                    key={`${trade.ticker}-${ti}`}
-                    className="rounded-xl bg-black/25 border border-white/10 p-4"
-                  >
-                    {doneTrade ? (
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
-                        <span>
-                          Trade {ti + 1} of {tradeInstructions.length}:{' '}
-                          {tradeTitle(trade)}
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="border-b border-white/15 pb-2 mb-3">
-                          <p className="text-xs uppercase tracking-wide opacity-70">
-                            Trade {ti + 1} of {tradeInstructions.length}
-                          </p>
-                          <p className="font-bold text-base">{tradeTitle(trade)}</p>
-                          <p className="text-sm opacity-90 mt-1 tabular-nums">
-                            Amount: {fmtMoney(trade.amount_dollars)}
-                          </p>
-                        </div>
-                        <p className="text-xs opacity-80 mb-2">
-                          Step {doneCount} of {totalSteps} complete
-                        </p>
-                        <p className="text-sm mb-3 leading-snug">
-                          <span className="opacity-70">Why: </span>
-                          {trade.plain_english_why}
-                        </p>
-                        <ul className="space-y-2 mb-3">
-                          {(trade.steps ?? []).map((step, si) => {
-                            const checked = (
-                              completedSteps[ti] ?? []
-                            ).includes(si);
-                            return (
-                              <li key={si}>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleStep(ti, si)}
-                                  className="flex items-start gap-2 text-left text-sm w-full hover:opacity-95"
-                                >
-                                  <span className="mt-0.5 shrink-0">
-                                    {checked ? '☑' : '☐'}
-                                  </span>
-                                  <span
-                                    className={
-                                      checked
-                                        ? 'line-through opacity-70'
-                                        : ''
-                                    }
-                                  >
-                                    {si + 1}. {step}
-                                  </span>
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        {trade.timing_note && (
-                          <p className="text-[11px] opacity-75 mb-1">
-                            {trade.timing_note}
-                          </p>
-                        )}
-                        {trade.mutual_fund_note && (
-                          <p className="text-[11px] opacity-75 mb-3">
-                            {trade.mutual_fund_note}
-                          </p>
-                        )}
-                        {stepsCompleteFor(ti) && (
-                          <button
-                            type="button"
-                            disabled={applying}
-                            onClick={onMarkTradeComplete}
-                            className="w-full mt-2 py-2.5 rounded-lg bg-white text-gray-900 font-semibold text-sm hover:bg-gray-100 transition flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            {applying ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : null}
-                            Mark trade complete →
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+          {phase === 'applying' && (
+            <div className="rounded-xl bg-black/25 border border-white/10 p-5 flex items-center gap-3 animate-in fade-in duration-300">
+              <Loader2 className="w-6 h-6 animate-spin text-white" />
+              <div className="text-sm">
+                <p className="font-semibold">Rebalancing your portfolio…</p>
+                <p className="opacity-80 text-xs mt-0.5">
+                  Aligning every holding to your target allocation. This usually
+                  takes a second.
+                </p>
+              </div>
             </div>
           )}
 
@@ -472,21 +331,48 @@ function RecommendationCard({
             <div className="animate-in fade-in duration-300 space-y-4">
               <div className="flex items-center gap-2 text-lg font-bold">
                 <CheckCircle2 className="w-7 h-7 text-emerald-300" />
-                All trades complete
+                Portfolio rebalanced
               </div>
+
+              {appliedTrades.length > 0 && (
+                <div className="rounded-xl bg-black/25 border border-white/10 p-3">
+                  <p className="text-[11px] uppercase tracking-wide opacity-80 mb-2">
+                    Executed for you
+                  </p>
+                  <div className="space-y-1.5">
+                    {appliedTrades.slice(0, 6).map((t, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                              t.action === 'buy'
+                                ? 'bg-emerald-500/30 text-emerald-100'
+                                : 'bg-rose-500/30 text-rose-100'
+                            }`}
+                          >
+                            {t.action}
+                          </span>
+                          <span>{t.ticker ?? '—'}</span>
+                        </span>
+                        <span className="font-semibold tabular-nums">
+                          {fmtMoney(t.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <p className="text-sm opacity-95 leading-relaxed">
-                Your portfolio has been aligned to your target allocation in
-                FinanceIQ.{' '}
+                Your holdings are now aligned to your target allocation.
                 {strategyNote ? (
-                  <>
-                    <span className="block mt-3 font-medium">{strategyNote}</span>
-                  </>
+                  <span className="block mt-3 font-medium">{strategyNote}</span>
                 ) : null}
-                <span className="block mt-3 opacity-90">
-                  Prices will sync automatically — check back in a few minutes
-                  for updated allocation.
-                </span>
               </p>
+
               <button
                 type="button"
                 onClick={async () => {

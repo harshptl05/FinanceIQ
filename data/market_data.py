@@ -6,15 +6,49 @@ from data.quote_providers import resolve_prices_sync
 
 logger = get_logger("market_data")
 
+# Money-market / stable NAV mutual funds: Yahoo and many quote APIs omit a
+# tradeable "last" for these symbols, but every share is worth $1.00 for
+# portfolio math (shares = dollars). Rebalance inserts VMFXX when building
+# cash sleeves — without this pin, apply_rebalanced_allocation raises
+# "Could not price VMFXX".
+_NAV_ONE_USD_TICKERS: frozenset[str] = frozenset(
+    {
+        "VMFXX",  # Vanguard Federal Money Market Investor
+        "VMMXX",  # Vanguard Treasury Money Market Investor
+        "VUSXX",  # Vanguard Treasury Money Market Admiral
+        "VPTXX",  # Vanguard Pennsylvania Tax-Exempt Money Market
+        "SPAXX",  # Fidelity Government Money Market
+        "FDRXX",  # Fidelity Government Cash Reserves
+        "FZCXX",  # Fidelity Government Money Market
+        "SWVXX",  # Schwab Value Advantage Money Investor
+    }
+)
+
 
 def _fetch_stock_info_sync(ticker: str) -> dict:
     try:
-        px = resolve_prices_sync(ticker)
+        sym = (ticker or "").upper().strip()
+        if sym in _NAV_ONE_USD_TICKERS:
+            return {
+                "ticker": sym,
+                "name": sym,
+                "price": 1.0,
+                "previous_close": 1.0,
+                "day_change_pct": 0.0,
+                "market_cap": None,
+                "sector": None,
+                "industry": None,
+                "fifty_two_week_high": 1.0,
+                "fifty_two_week_low": 1.0,
+                "currency": "USD",
+            }
+
+        px = resolve_prices_sync(sym)
         last_price = px[0] if px else None
         previous_close = px[1] if px else None
         day_change_pct = px[2] if px else 0.0
 
-        t = yf.Ticker(ticker)
+        t = yf.Ticker(sym)
         info = t.info or {}
         fast = t.fast_info
 
@@ -41,8 +75,8 @@ def _fetch_stock_info_sync(ticker: str) -> dict:
             fl = getattr(fast, "fifty_two_week_low", None)
 
         return {
-            "ticker": ticker.upper(),
-            "name": info.get("longName", ticker),
+            "ticker": sym,
+            "name": info.get("longName", sym),
             "price": last_price,
             "previous_close": previous_close,
             "day_change_pct": day_change_pct,

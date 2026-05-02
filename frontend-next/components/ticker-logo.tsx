@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { domainLogoUrl, tickerIssuerDomain, tickerLogoUrl } from '@/lib/logos';
+import { useEffect, useMemo, useState } from 'react';
+import { buildTickerLogoUrlChain } from '@/lib/logos';
 
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -31,18 +31,14 @@ interface Props {
 }
 
 /**
- * Brand mark for a stock / ETF / mutual-fund ticker via logo.dev.
+ * Brand mark for a stock / ETF / mutual-fund ticker.
  *
- * Source order:
- *   1. /ticker/<TICKER>            — works for stocks + ETFs.
- *   2. /<issuer-domain>            — fallback for mutual fund symbols
- *                                    (VFIAX → vanguard.com, FXAIX →
- *                                    fidelity.com, …). logo.dev's ticker
- *                                    endpoint has no fund coverage, but
- *                                    its domain endpoint always serves
- *                                    the issuer's brand mark, which is
- *                                    what brokers actually display.
- *   3. Colored letter chip         — last-resort visual fallback.
+ * Image URL waterfall (each step on `img` error advances):
+ *   1. Known static issuer mark (e.g. Vanguard index mutual funds — VFIAX,
+ *      VTIAX, VMFXX — where logo.dev is unreliable).
+ *   2. logo.dev `/ticker/<SYM>` — stocks and many ETFs.
+ *   3. logo.dev `/<issuer-domain>/` — mutual funds that map to an issuer.
+ *   4. Colored letter chip — last resort.
  */
 export function TickerLogo({
   ticker,
@@ -52,34 +48,29 @@ export function TickerLogo({
   forceFallback = false,
   rounded = 'lg',
 }: Props) {
-  // attempt index: 0 = ticker endpoint, 1 = issuer domain, 2 = letter chip
-  const [attempt, setAttempt] = useState(0);
   const px = SIZE_PX[size];
   const radius =
     rounded === 'full' ? 'rounded-full' : rounded === 'md' ? 'rounded-md' : 'rounded-lg';
 
-  const issuerDomain = useMemo(() => tickerIssuerDomain(ticker), [ticker]);
+  const sources = useMemo(
+    () => buildTickerLogoUrlChain(ticker, PIX_FOR_API[size]),
+    [ticker, size],
+  );
 
-  // If we have an issuer domain we want it as Tier 2; otherwise skip
-  // straight to letter chip after Tier 1 fails.
-  const maxAttempt = issuerDomain ? 2 : 1;
-  const effective = forceFallback ? maxAttempt : Math.min(attempt, maxAttempt);
-  const showLetter = effective >= maxAttempt;
+  const [srcIdx, setSrcIdx] = useState(0);
+
+  useEffect(() => {
+    setSrcIdx(0);
+  }, [ticker, size]);
+
+  const showLetter = forceFallback || srcIdx >= sources.length || sources.length === 0;
+  const src =
+    !showLetter && sources.length > 0
+      ? sources[Math.min(srcIdx, sources.length - 1)]
+      : null;
 
   const letter = (ticker || '?').trim().charAt(0).toUpperCase();
   const fontSize = Math.max(11, Math.round(px * 0.42));
-
-  // Pick the URL for the current attempt. Keyed in the JSX to force a
-  // proper re-mount when we step from /ticker/ → /domain/, so the
-  // browser doesn't try to keep using the broken cached response.
-  let src: string | null = null;
-  if (!showLetter) {
-    if (effective === 0) {
-      src = tickerLogoUrl(ticker, PIX_FOR_API[size], 'webp');
-    } else if (effective === 1 && issuerDomain) {
-      src = domainLogoUrl(issuerDomain, PIX_FOR_API[size], 'webp');
-    }
-  }
 
   return (
     <div
@@ -101,18 +92,15 @@ export function TickerLogo({
           {letter}
         </span>
       ) : (
-        // Plain <img> (we already disable next/image optimization in
-        // next.config.mjs) so we can react to onError and step through
-        // the source-tier waterfall above.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          key={`${ticker}-${effective}`}
+          key={`${ticker}-${srcIdx}`}
           src={src}
           alt={`${ticker} logo`}
           width={px}
           height={px}
           loading="lazy"
-          onError={() => setAttempt((n) => n + 1)}
+          onError={() => setSrcIdx((n) => n + 1)}
           className="object-contain"
           style={{ width: px, height: px }}
         />

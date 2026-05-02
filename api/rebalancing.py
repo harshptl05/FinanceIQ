@@ -29,6 +29,18 @@ DEFAULT_TICKER_BY_CLASS = {
     "other": "VTI",
 }
 
+# Friendly names when we synthesize a holding row during apply.
+_INSERT_HOLDING_DISPLAY_NAMES = {
+    "VMFXX": "Vanguard Federal Money Market",
+    "VMMXX": "Vanguard Treasury Money Market",
+    "VUSXX": "Vanguard Treasury Money Market (Admiral)",
+    "VTI": "Vanguard Total Stock Market ETF",
+    "VXUS": "Vanguard Total International Stock ETF",
+    "BND": "Vanguard Total Bond Market ETF",
+    "VNQ": "Vanguard Real Estate ETF",
+    "GLD": "SPDR Gold Shares",
+}
+
 INSTRUCTION_PROMPT = """You are helping an everyday investor execute rebalancing trades in their brokerage account.
 
 RECOMMENDED TRADES:
@@ -449,7 +461,7 @@ async def apply_rebalanced_allocation(
         insert_payload = {
             "user_id": user_id,
             "ticker": ticker,
-            "name": ticker,
+            "name": _INSERT_HOLDING_DISPLAY_NAMES.get(ticker, ticker),
             "asset_class": ins["asset_class"],
             "shares": round(shares, 6),
             "avg_cost_basis": round(price, 4),

@@ -11,7 +11,7 @@ CREATE TABLE user_profiles (
 CREATE TABLE goals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
-  goal_type TEXT CHECK (goal_type IN ('retirement', 'house', 'college', 'emergency', 'other')),
+  goal_type TEXT CHECK (goal_type IN ('retirement', 'house', 'college', 'emergency', 'wedding', 'pet', 'car', 'travel', 'other')),
   goal_name TEXT NOT NULL,
   target_date DATE NOT NULL,
   target_amount DECIMAL(12,2),

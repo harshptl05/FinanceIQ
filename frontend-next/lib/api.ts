@@ -60,6 +60,17 @@ export type FundCostDragItem = {
   annual_drag: number;
 };
 
+export type GoalType =
+  | 'retirement'
+  | 'house'
+  | 'college'
+  | 'emergency'
+  | 'wedding'
+  | 'pet'
+  | 'car'
+  | 'travel'
+  | 'other';
+
 export type Goal = {
   id: string;
   goal_type: string;
@@ -73,6 +84,20 @@ export type Goal = {
   rebalancing_frequency?: string | null;
   account_type?: string | null;
 };
+
+export type GoalCreate = {
+  goal_type: GoalType | string;
+  goal_name: string;
+  target_date: string;
+  target_amount?: number | null;
+  current_amount?: number | null;
+  rebalancing_strategy?: string;
+  rebalancing_threshold?: number;
+  rebalancing_frequency?: string;
+  account_type?: string;
+};
+
+export type GoalUpdate = Partial<GoalCreate>;
 
 export type Alert = {
   id: string;
@@ -298,6 +323,11 @@ export const api = {
   },
   goals: {
     list: () => get<{ goals: Goal[] }>('/goals'),
+    create: (body: GoalCreate) => post<Goal>('/goals', body),
+    update: (id: string, body: GoalUpdate) => put<Goal>(`/goals/${id}`, body),
+    remove: (id: string) => fetchDelete<{ deleted: string }>(`/goals/${id}`),
+    contribute: (id: string, amount: number) =>
+      post<Goal>(`/goals/${id}/contribute`, { amount }),
   },
   holdings: {
     list: () => get<{ holdings: Holding[] }>('/holdings'),

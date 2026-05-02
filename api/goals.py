@@ -24,6 +24,7 @@ class GoalCreate(BaseModel):
     goal_name: str
     target_date: str
     target_amount: float | None = None
+    current_amount: float | None = None
     rebalancing_strategy: str = "hybrid"
     rebalancing_threshold: float = 0.05
     rebalancing_frequency: str = "quarterly"
@@ -33,12 +34,19 @@ class GoalCreate(BaseModel):
 
 class GoalUpdate(BaseModel):
     goal_name: str | None = None
+    goal_type: str | None = None
     target_date: str | None = None
     target_amount: float | None = None
+    current_amount: float | None = None
     target_allocation: dict | None = None
     rebalancing_strategy: str | None = None
     rebalancing_threshold: float | None = None
     rebalancing_frequency: str | None = None
+    account_type: str | None = None
+
+
+class GoalContribution(BaseModel):
+    amount: float
 
 
 @router.post("")
@@ -70,8 +78,46 @@ def list_goals(authorization: str | None = Header(default=None)):
 def update_goal(goal_id: str, body: GoalUpdate, authorization: str | None = Header(default=None)):
     user_id = _get_user_id(authorization)
     db = get_db()
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    updates = body.model_dump(exclude_unset=True)
+    if updates.get("target_date") and updates.get("target_allocation") is None:
+        try:
+            td = datetime.strptime(updates["target_date"][:10], "%Y-%m-%d").date()
+            years = max((td - date.today()).days / 365.25, 0)
+            cur_resp = db.table("goals").select("goal_type").eq("id", goal_id).eq("user_id", user_id).execute()
+            gtype = (cur_resp.data or [{}])[0].get("goal_type") if cur_resp.data else None
+            if gtype:
+                updates["target_allocation"] = get_target_allocation(updates.get("goal_type") or gtype, years)
+        except Exception:
+            pass
     resp = db.table("goals").update(updates).eq("id", goal_id).eq("user_id", user_id).execute()
+    return resp.data[0] if resp.data else {}
+
+
+@router.post("/{goal_id}/contribute")
+def contribute_to_goal(
+    goal_id: str,
+    body: GoalContribution,
+    authorization: str | None = Header(default=None),
+):
+    user_id = _get_user_id(authorization)
+    db = get_db()
+    cur = (
+        db.table("goals")
+        .select("current_amount")
+        .eq("id", goal_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not cur.data:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    new_amount = float(cur.data[0].get("current_amount") or 0) + float(body.amount)
+    resp = (
+        db.table("goals")
+        .update({"current_amount": round(new_amount, 2)})
+        .eq("id", goal_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
     return resp.data[0] if resp.data else {}
 
 

@@ -19,6 +19,23 @@ GLIDE_PATH = {
     "emergency": {
         0: {"us_stocks": 0.00, "intl_stocks": 0.00, "bonds": 0.00, "cash": 1.00},
     },
+    "wedding": {
+        3: {"us_stocks": 0.30, "intl_stocks": 0.00, "bonds": 0.40, "cash": 0.30},
+        2: {"us_stocks": 0.15, "intl_stocks": 0.00, "bonds": 0.30, "cash": 0.55},
+        1: {"us_stocks": 0.00, "intl_stocks": 0.00, "bonds": 0.20, "cash": 0.80},
+    },
+    "pet": {
+        3: {"us_stocks": 0.20, "intl_stocks": 0.00, "bonds": 0.40, "cash": 0.40},
+        1: {"us_stocks": 0.00, "intl_stocks": 0.00, "bonds": 0.20, "cash": 0.80},
+    },
+    "car": {
+        3: {"us_stocks": 0.20, "intl_stocks": 0.00, "bonds": 0.40, "cash": 0.40},
+        1: {"us_stocks": 0.00, "intl_stocks": 0.00, "bonds": 0.20, "cash": 0.80},
+    },
+    "travel": {
+        3: {"us_stocks": 0.30, "intl_stocks": 0.10, "bonds": 0.30, "cash": 0.30},
+        1: {"us_stocks": 0.10, "intl_stocks": 0.00, "bonds": 0.30, "cash": 0.60},
+    },
     "other": {
         20: {"us_stocks": 0.60, "intl_stocks": 0.15, "bonds": 0.20, "cash": 0.05},
         10: {"us_stocks": 0.50, "intl_stocks": 0.10, "bonds": 0.30, "cash": 0.10},

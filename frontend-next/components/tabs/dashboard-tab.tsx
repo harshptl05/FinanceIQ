@@ -7,20 +7,17 @@ import {
   RefreshCcw,
   PiggyBank,
   Bell,
-  Scale,
   Wallet,
   AlertTriangle,
   Sparkles,
   Loader2,
   ExternalLink,
 } from 'lucide-react';
-import { useMemo } from 'react';
 import type { PortfolioData } from '@/hooks/use-portfolio-data';
 import { useAuth } from '@/lib/auth-context';
-import { fmtMoney, fmtPct, holdingColorMap, relativeTime } from '@/lib/format';
-import { EmptyState } from '@/components/data-state';
+import { fmtMoney, fmtPct } from '@/lib/format';
 import { MarketPulseCard } from '@/components/market-pulse-card';
-import { TickerLogo } from '@/components/ticker-logo';
+import { PortfolioValueChart } from '@/components/portfolio-value-chart';
 import { toast } from 'sonner';
 
 function greeting() {
@@ -30,21 +27,12 @@ function greeting() {
   return 'Good evening';
 }
 
-function urgencyClass(u?: string | null) {
-  if (u === 'act_now') return 'bg-rose-50 text-rose-700 border-rose-200';
-  if (u === 'act_soon') return 'bg-amber-50 text-amber-700 border-amber-200';
-  if (u === 'monitor') return 'bg-blue-50 text-blue-700 border-blue-200';
-  return 'bg-gray-50 text-gray-600 border-gray-200';
-}
-
 export function DashboardTab({ data }: { data: PortfolioData }) {
   const { user } = useAuth();
   const {
     summary,
     history,
-    alerts,
     holdings,
-    recommendations,
     pricesSynced,
     syncPrices,
   } = data;
@@ -72,8 +60,6 @@ export function DashboardTab({ data }: { data: PortfolioData }) {
     const cost = Number(h.shares ?? 0) * Number(h.avg_cost_basis ?? 0);
     return acc + (cv - cost);
   }, 0);
-
-  const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
 
   const handleSync = async () => {
     if (syncing) return;
@@ -220,119 +206,16 @@ export function DashboardTab({ data }: { data: PortfolioData }) {
         </div>
       )}
 
-      {/* Recent activity (alerts + recommendations) + Market Pulse + Quick actions */}
+      {/* Hero — Portfolio Value chart, Market Pulse, Quick actions */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-6 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Recent activity</h2>
-            <span className="text-[11px] text-gray-400">
-              {alerts.length} unread alert{alerts.length === 1 ? '' : 's'}
-            </span>
-          </div>
-
-          {alerts.length === 0 && recommendations.length === 0 ? (
-            <EmptyState
-              title="All quiet"
-              description="No alerts or rebalancing recommendations right now. The pipeline checks news every 5 minutes."
-            />
-          ) : (
-            <div className="space-y-3">
-              {alerts.slice(0, 4).map((a) => {
-                const primaryTicker =
-                  (a.affected_holdings ?? []).find((t) => colorMap[t]) ??
-                  (a.affected_holdings ?? [])[0];
-                return (
-                <div
-                  key={a.id}
-                  className="flex items-start gap-3 py-3 border-b border-gray-50 last:border-0"
-                >
-                  {primaryTicker ? (
-                    <TickerLogo
-                      ticker={primaryTicker}
-                      color={colorMap[primaryTicker] ?? '#6366F1'}
-                      size="md"
-                    />
-                  ) : (
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        a.impact_classification === 'positive'
-                          ? 'bg-green-50'
-                          : a.impact_classification === 'negative'
-                            ? 'bg-rose-50'
-                            : 'bg-blue-50'
-                      }`}
-                    >
-                      {a.impact_classification === 'positive' ? (
-                        <TrendingUp className="w-5 h-5 text-green-600" />
-                      ) : a.impact_classification === 'negative' ? (
-                        <TrendingDown className="w-5 h-5 text-rose-500" />
-                      ) : (
-                        <Bell className="w-5 h-5 text-blue-600" />
-                      )}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-sm">
-                        {a.affected_holdings && a.affected_holdings.length > 0
-                          ? a.affected_holdings.join(' · ')
-                          : 'Portfolio update'}
-                      </p>
-                      {a.urgency && (
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full border ${urgencyClass(a.urgency)}`}
-                        >
-                          {a.urgency.replace('_', ' ')}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
-                      {a.plain_english_explanation ?? '—'}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    {typeof a.estimated_dollar_impact === 'number' &&
-                      a.estimated_dollar_impact !== 0 && (
-                        <p
-                          className={`font-semibold text-sm tabular-nums ${
-                            a.estimated_dollar_impact >= 0
-                              ? 'text-green-600'
-                              : 'text-rose-500'
-                          }`}
-                        >
-                          {a.estimated_dollar_impact >= 0 ? '+' : '−'}
-                          {fmtMoney(Math.abs(a.estimated_dollar_impact))}
-                        </p>
-                      )}
-                    <p className="text-xs text-gray-400">{relativeTime(a.created_at)}</p>
-                  </div>
-                </div>
-                );
-              })}
-
-              {recommendations.slice(0, 2).map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-start gap-3 py-3 border-b border-gray-50 last:border-0"
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 shrink-0">
-                    <Scale className="w-5 h-5 text-indigo-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">
-                      Rebalancing recommendation
-                    </p>
-                    <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
-                      {r.plain_english_explanation ?? r.trigger_description ?? '—'}
-                    </p>
-                  </div>
-                  <p className="text-xs text-gray-400 shrink-0">
-                    {relativeTime(r.created_at)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="lg:col-span-6">
+          <PortfolioValueChart
+            history={history}
+            summary={summary}
+            holdings={holdings}
+            defaultPeriod="1Y"
+            compact
+          />
         </div>
 
         <MarketPulseCard

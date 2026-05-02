@@ -2,14 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -32,12 +24,13 @@ import { StockDetailDialog } from '@/components/stock-detail-dialog';
 import { TickerLogo } from '@/components/ticker-logo';
 import { LiveMarketCard } from '@/components/live-market-card';
 import { FundOverlapCard } from '@/components/fund-overlap-card';
+import { PortfolioValueChart } from '@/components/portfolio-value-chart';
 import { isMutualFund, formatExpenseRatio } from '@/lib/funds';
 
-type Period = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
+// Profit-radial period selector still lives here (its own dropdown).
 type ProfitPeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 
-const PERIOD_DAYS: Record<Period, number | null> = {
+const PROFIT_PERIOD_DAYS: Record<ProfitPeriod, number | null> = {
   '1M': 30,
   '3M': 90,
   '6M': 180,
@@ -46,29 +39,12 @@ const PERIOD_DAYS: Record<Period, number | null> = {
   ALL: null,
 };
 
-function CustomTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ value: number }>;
-  label?: string;
-}) {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-gray-900 text-white px-3 py-2 rounded-xl shadow-lg">
-        <p className="font-semibold tabular-nums">{fmtMoney(payload[0].value)}</p>
-        <p className="text-xs text-gray-300">{label}</p>
-      </div>
-    );
-  }
-  return null;
-}
-
-function filterHistory(history: { snapshot_date: string; total_value: number }[], period: Period | ProfitPeriod) {
+function filterHistory(
+  history: { snapshot_date: string; total_value: number }[],
+  period: ProfitPeriod,
+) {
   if (!history.length) return [];
-  const days = PERIOD_DAYS[period as Period];
+  const days = PROFIT_PERIOD_DAYS[period];
   let cutoff: Date | null = null;
   if (period === 'YTD') cutoff = new Date(new Date().getFullYear(), 0, 1);
   else if (days) cutoff = new Date(Date.now() - days * 86400_000);
@@ -88,7 +64,6 @@ function filterHistory(history: { snapshot_date: string; total_value: number }[]
 
 export function InvestmentTab({ data }: { data: PortfolioData }) {
   const { loading, summary, history, holdings, news } = data;
-  const [period, setPeriod] = useState<Period>('1Y');
   const [profitPeriod, setProfitPeriod] = useState<ProfitPeriod>('ALL');
   const [profitPeriodOpen, setProfitPeriodOpen] = useState(false);
 
@@ -103,23 +78,9 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
   // VTI is always blue, BND always green, etc.
   const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
 
-  const filteredHistory = useMemo(
-    () => filterHistory(history, period),
-    [history, period],
-  );
-
   const totalValue =
     summary?.total_value ??
     holdings.reduce((acc, h) => acc + Number(h.current_value ?? 0), 0);
-
-  const periodChange = useMemo(() => {
-    if (filteredHistory.length < 2) return null;
-    const first = filteredHistory[0].value;
-    const last = filteredHistory[filteredHistory.length - 1].value;
-    const dollar = last - first;
-    const pct = first > 0 ? (dollar / first) * 100 : 0;
-    return { dollar, pct };
-  }, [filteredHistory]);
 
   // Total profits over the selected period (current value vs value-period-ago)
   const profitFiltered = useMemo(
@@ -239,101 +200,13 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
 
       {/* Hero Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Portfolio value chart */}
-        <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="text-lg font-semibold">Portfolio Value</h2>
-            <div className="flex items-center gap-1">
-              {(Object.keys(PERIOD_DAYS) as Period[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
-                    period === p
-                      ? 'bg-black text-white'
-                      : 'text-gray-500 hover:bg-gray-100'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-baseline gap-3 mb-1 flex-wrap">
-            <span className="text-4xl font-bold tabular-nums">
-              {fmtMoney(totalValue)}
-            </span>
-            {periodChange ? (
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-sm font-medium flex items-center gap-1 ${
-                  periodChange.dollar >= 0
-                    ? 'bg-green-50 text-green-700'
-                    : 'bg-rose-50 text-rose-700'
-                }`}
-              >
-                {periodChange.dollar >= 0 ? (
-                  <TrendingUp className="w-3.5 h-3.5" />
-                ) : (
-                  <TrendingDown className="w-3.5 h-3.5" />
-                )}
-                {fmtPct(periodChange.pct, { withSign: true, decimals: 2 })}
-              </span>
-            ) : (
-              <span className="text-xs text-gray-400">
-                Need ≥2 snapshots to show change
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-gray-500 mb-6">
-            {periodChange
-              ? `${periodChange.dollar >= 0 ? '+' : '−'}${fmtMoney(
-                  Math.abs(periodChange.dollar),
-                )} over the selected period`
-              : 'Run "Sync prices" daily to build history'}
-          </p>
-
-          <div className="h-64">
-            {filteredHistory.length >= 2 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={filteredHistory}>
-                  <defs>
-                    <linearGradient id="pvFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="label"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#6B7280', fontSize: 12 }}
-                    interval="preserveStartEnd"
-                    minTickGap={40}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#9CA3AF', fontSize: 11 }}
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#6366F1"
-                    strokeWidth={2}
-                    fill="url(#pvFill)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState
-                title="No portfolio history yet"
-                description="Once we've recorded at least two daily snapshots, your portfolio chart will appear here."
-              />
-            )}
-          </div>
+        <div className="lg:col-span-2">
+          <PortfolioValueChart
+            history={history}
+            summary={summary}
+            holdings={holdings}
+            defaultPeriod="1Y"
+          />
         </div>
 
         {/* Total Profits radial */}

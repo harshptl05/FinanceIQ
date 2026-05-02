@@ -7,9 +7,11 @@ import {
   ExternalLink,
   Loader2,
   Minus,
+  RefreshCcw,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useMarketPulse } from '@/hooks/use-market-pulse';
 import { fmtMoney, holdingColorMap, relativeTime } from '@/lib/format';
 import { TickerLogo } from '@/components/ticker-logo';
@@ -60,11 +62,30 @@ export function MarketPulseCard({
   compact = true,
   className = '',
 }: Props) {
-  const { items, loading, flash, refresh } = useMarketPulse(4);
+  const { items, loading, flash, triggering, triggerRefresh } =
+    useMarketPulse(4);
 
   const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
 
   const visible = items.slice(0, 4);
+
+  const handleRefresh = async () => {
+    if (triggering) return;
+    const t = toast.loading('Pulling news + asking the classifier...');
+    const res = await triggerRefresh();
+    if (!res.pipelineOk) {
+      toast.error(res.error || 'News pipeline failed', { id: t });
+      return;
+    }
+    if (res.newItems) {
+      toast.success("Found news that moves your portfolio", { id: t });
+    } else {
+      toast.message(
+        'Latest news pulled — none of it materially affects your holdings.',
+        { id: t },
+      );
+    }
+  };
 
   return (
     <div
@@ -95,10 +116,22 @@ export function MarketPulseCard({
           </div>
         </div>
         <button
-          onClick={() => void refresh()}
-          className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
+          onClick={() => void handleRefresh()}
+          disabled={triggering}
+          aria-busy={triggering}
+          className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-60 disabled:hover:text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-50 transition"
         >
-          Refresh
+          {triggering ? (
+            <>
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Scanning...
+            </>
+          ) : (
+            <>
+              <RefreshCcw className="w-3 h-3" />
+              Refresh
+            </>
+          )}
         </button>
       </div>
 
@@ -118,6 +151,23 @@ export function MarketPulseCard({
             <p className="text-[11px] text-gray-500 mt-1 max-w-[240px]">
               When the classifier finds news that moves your holdings, it&apos;ll show up here in real time.
             </p>
+            <button
+              onClick={() => void handleRefresh()}
+              disabled={triggering}
+              className="mt-4 flex items-center gap-1.5 text-[11px] font-medium text-white bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 px-3 py-1.5 rounded-full shadow-sm shadow-indigo-500/20 transition disabled:opacity-60"
+            >
+              {triggering ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Scanning headlines...
+                </>
+              ) : (
+                <>
+                  <RefreshCcw className="w-3 h-3" />
+                  Scan latest news
+                </>
+              )}
+            </button>
           </div>
         ) : (
           <ul className="space-y-2.5">

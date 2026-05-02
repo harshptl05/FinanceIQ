@@ -1,0 +1,16 @@
+[build]
+builder = "NIXPACKS"
+
+[build.nixpacksConfig]
+# Pin Python so feedparser / lxml etc. compile cleanly on Railway's image.
+providers = ["python"]
+
+[deploy]
+# The web service that the Vercel frontend will call.
+# Worker (orchestrator + agents) is configured separately as a second
+# Railway service in the same project — see DEPLOY.md.
+startCommand = "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

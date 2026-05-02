@@ -89,15 +89,17 @@ target_holdings = [
     {"ticker": "BND",   "name": "Vanguard Total Bond Market ETF",         "asset_class": "bonds",       "shares": 300,   "avg_cost_basis": 74.20},
     {"ticker": "AAPL",  "name": "Apple Inc.",                              "asset_class": "us_stocks",   "shares": 50,    "avg_cost_basis": 142.80},
     {"ticker": "MSFT",  "name": "Microsoft Corp.",                         "asset_class": "us_stocks",   "shares": 20,    "avg_cost_basis": 280.50},
-    {"ticker": "VMFXX", "name": "Vanguard Federal Money Market",           "asset_class": "cash",        "shares": 10032, "avg_cost_basis": 1.00,  "current_price": 1.00, "current_value": 10032.00},
 
     # Mutual funds (NAV-priced, daily). These are the most commonly held
     # 401k / IRA fund tickers — perfect for showing off the fund-overlap
     # analyzer (VFIAX + FXAIX both track the S&P 500, ~95% overlap with
-    # each other and ~85% with VTI).
-    {"ticker": "VFIAX", "name": "Vanguard 500 Index Admiral",             "asset_class": "us_stocks",   "shares": 65,    "avg_cost_basis": 380.50, "is_mutual_fund": True, "expense_ratio": 0.0004},
-    {"ticker": "FXAIX", "name": "Fidelity 500 Index Fund",                "asset_class": "us_stocks",   "shares": 110,   "avg_cost_basis": 142.10, "is_mutual_fund": True, "expense_ratio": 0.00015},
-    {"ticker": "FCNTX", "name": "Fidelity Contrafund",                    "asset_class": "us_stocks",   "shares": 90,    "avg_cost_basis": 14.80,  "is_mutual_fund": True, "expense_ratio": 0.0039},
+    # each other and ~85% with VTI). VTIAX adds a non-correlated intl
+    # mutual fund alongside VXUS (the ETF version of similar exposure)
+    # so users can see the ETF-vs-mutual-fund comparison directly.
+    {"ticker": "VFIAX", "name": "Vanguard 500 Index Admiral",                          "asset_class": "us_stocks",   "shares": 65,    "avg_cost_basis": 380.50, "is_mutual_fund": True, "expense_ratio": 0.0004},
+    {"ticker": "FXAIX", "name": "Fidelity 500 Index Fund",                             "asset_class": "us_stocks",   "shares": 110,   "avg_cost_basis": 142.10, "is_mutual_fund": True, "expense_ratio": 0.00015},
+    {"ticker": "FCNTX", "name": "Fidelity Contrafund",                                 "asset_class": "us_stocks",   "shares": 90,    "avg_cost_basis": 14.80,  "is_mutual_fund": True, "expense_ratio": 0.0039},
+    {"ticker": "VTIAX", "name": "Vanguard Total International Stock Index Admiral",    "asset_class": "intl_stocks", "shares": 220,   "avg_cost_basis": 32.40,  "is_mutual_fund": True, "expense_ratio": 0.0011, "current_price": 35.18, "current_value": 7739.60},
 ]
 
 for h in target_holdings:

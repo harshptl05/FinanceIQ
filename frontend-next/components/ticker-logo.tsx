@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { tickerLogoUrl } from '@/lib/logos';
+import { useMemo, useState } from 'react';
+import { domainLogoUrl, tickerIssuerDomain, tickerLogoUrl } from '@/lib/logos';
 
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -31,11 +31,18 @@ interface Props {
 }
 
 /**
- * Brand mark for a stock / ETF ticker via logo.dev.
+ * Brand mark for a stock / ETF / mutual-fund ticker via logo.dev.
  *
- * If the image fails to load (e.g. logo.dev doesn't have it, or the ticker
- * is a mutual-fund symbol), we fall back to a colored letter chip — same
- * style the rest of the app already uses, just unified in one component.
+ * Source order:
+ *   1. /ticker/<TICKER>            — works for stocks + ETFs.
+ *   2. /<issuer-domain>            — fallback for mutual fund symbols
+ *                                    (VFIAX → vanguard.com, FXAIX →
+ *                                    fidelity.com, …). logo.dev's ticker
+ *                                    endpoint has no fund coverage, but
+ *                                    its domain endpoint always serves
+ *                                    the issuer's brand mark, which is
+ *                                    what brokers actually display.
+ *   3. Colored letter chip         — last-resort visual fallback.
  */
 export function TickerLogo({
   ticker,
@@ -45,14 +52,34 @@ export function TickerLogo({
   forceFallback = false,
   rounded = 'lg',
 }: Props) {
-  const [errored, setErrored] = useState(false);
+  // attempt index: 0 = ticker endpoint, 1 = issuer domain, 2 = letter chip
+  const [attempt, setAttempt] = useState(0);
   const px = SIZE_PX[size];
   const radius =
     rounded === 'full' ? 'rounded-full' : rounded === 'md' ? 'rounded-md' : 'rounded-lg';
 
-  const showFallback = forceFallback || errored;
+  const issuerDomain = useMemo(() => tickerIssuerDomain(ticker), [ticker]);
+
+  // If we have an issuer domain we want it as Tier 2; otherwise skip
+  // straight to letter chip after Tier 1 fails.
+  const maxAttempt = issuerDomain ? 2 : 1;
+  const effective = forceFallback ? maxAttempt : Math.min(attempt, maxAttempt);
+  const showLetter = effective >= maxAttempt;
+
   const letter = (ticker || '?').trim().charAt(0).toUpperCase();
   const fontSize = Math.max(11, Math.round(px * 0.42));
+
+  // Pick the URL for the current attempt. Keyed in the JSX to force a
+  // proper re-mount when we step from /ticker/ → /domain/, so the
+  // browser doesn't try to keep using the broken cached response.
+  let src: string | null = null;
+  if (!showLetter) {
+    if (effective === 0) {
+      src = tickerLogoUrl(ticker, PIX_FOR_API[size], 'webp');
+    } else if (effective === 1 && issuerDomain) {
+      src = domainLogoUrl(issuerDomain, PIX_FOR_API[size], 'webp');
+    }
+  }
 
   return (
     <div
@@ -60,13 +87,13 @@ export function TickerLogo({
       style={{
         width: px,
         height: px,
-        backgroundColor: showFallback ? color : '#fff',
-        boxShadow: showFallback ? 'none' : 'inset 0 0 0 1px rgba(0,0,0,0.06)',
+        backgroundColor: showLetter ? color : '#fff',
+        boxShadow: showLetter ? 'none' : 'inset 0 0 0 1px rgba(0,0,0,0.06)',
       }}
       aria-label={ticker}
       title={ticker}
     >
-      {showFallback ? (
+      {showLetter || !src ? (
         <span
           className="font-bold text-white tracking-tight"
           style={{ fontSize }}
@@ -74,17 +101,18 @@ export function TickerLogo({
           {letter}
         </span>
       ) : (
-        // Plain <img>, not next/image. We already opt out of next/image
-        // optimization (next.config.mjs images.unoptimized=true), and we
-        // need onError handling to fall back to the letter chip.
+        // Plain <img> (we already disable next/image optimization in
+        // next.config.mjs) so we can react to onError and step through
+        // the source-tier waterfall above.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={tickerLogoUrl(ticker, PIX_FOR_API[size], 'webp')}
+          key={`${ticker}-${effective}`}
+          src={src}
           alt={`${ticker} logo`}
           width={px}
           height={px}
           loading="lazy"
-          onError={() => setErrored(true)}
+          onError={() => setAttempt((n) => n + 1)}
           className="object-contain"
           style={{ width: px, height: px }}
         />

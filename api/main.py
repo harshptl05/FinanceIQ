@@ -11,6 +11,7 @@ from api import (
     rebalancing,
     news,
     funds,
+    search,
 )
 import agents.news_ingestion as news_agent
 import agents.alert_agent as alert_agent
@@ -39,6 +40,7 @@ app.include_router(scenarios.router, prefix="/api/scenarios", tags=["scenarios"]
 app.include_router(rebalancing.router, prefix="/api/rebalancing", tags=["rebalancing"])
 app.include_router(news.router, prefix="/api/news", tags=["news"])
 app.include_router(funds.router, prefix="/api/funds", tags=["funds"])
+app.include_router(search.router, prefix="/api/search", tags=["search"])
 
 
 @app.get("/health")

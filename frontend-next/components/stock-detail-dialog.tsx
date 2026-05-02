@@ -9,14 +9,20 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { TrendingDown, TrendingUp, Clock } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  TrendingDown,
+  TrendingUp,
+  Clock,
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { FundMetadata, Holding, PortfolioSnapshot } from '@/lib/api';
+import type { FundMetadata, Holding, PortfolioSnapshot, TradeAction } from '@/lib/api';
 import {
   fmtMoney,
   fmtPct,
@@ -32,6 +38,7 @@ import {
 } from '@/lib/funds';
 import { FundComposition } from '@/components/fund-composition';
 import { FundCostDrag } from '@/components/fund-cost-drag';
+import { TradeDialog } from '@/components/trade-dialog';
 
 type Props = {
   holding: Holding | null;
@@ -41,6 +48,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   /** Optional override so the modal matches the color used in the dashboard. */
   color?: string;
+  /** Called after a successful trade so the parent can refetch holdings. */
+  onTraded?: () => void;
 };
 
 /** Reconstruct a synthetic price history for the holding by allocating the
@@ -77,6 +86,7 @@ export function StockDetailDialog({
   open,
   onOpenChange,
   color: colorOverride,
+  onTraded,
 }: Props) {
   const data = useMemo(
     () => (holding ? buildSeries(holding, totalPortfolioValue, history) : []),
@@ -89,6 +99,8 @@ export function StockDetailDialog({
 
   const [fundMeta, setFundMeta] = useState<FundMetadata | null>(null);
   const [fundLoading, setFundLoading] = useState(false);
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const [tradeAction, setTradeAction] = useState<TradeAction>('buy');
 
   useEffect(() => {
     if (!ticker || !isFundLike) {
@@ -141,7 +153,7 @@ export function StockDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <TickerLogo
               ticker={ticker}
               color={color}
@@ -171,6 +183,36 @@ export function StockDetailDialog({
                   {assetLabel(aClass)}
                 </span>
               </p>
+            </div>
+            {/* Quick trade controls — visible on every detail dialog so a buy
+                or sell is always one tap away, no menu hunting. Sell is
+                hidden when the user doesn't actually own this ticker
+                (i.e. opened from search). */}
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeAction('buy');
+                  setTradeOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+              >
+                <ArrowDownToLine className="w-3.5 h-3.5" />
+                Buy
+              </button>
+              {Number(holding.shares ?? 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTradeAction('sell');
+                    setTradeOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 transition"
+                >
+                  <ArrowUpFromLine className="w-3.5 h-3.5" />
+                  Sell
+                </button>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -293,6 +335,34 @@ export function StockDetailDialog({
           </div>
         ) : null}
 
+        {/* Mobile-only Buy/Sell row — header buttons hide < sm */}
+        <div className="sm:hidden flex items-center gap-2 mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setTradeAction('buy');
+              setTradeOpen(true);
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+          >
+            <ArrowDownToLine className="w-4 h-4" />
+            Buy
+          </button>
+          {Number(holding.shares ?? 0) > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setTradeAction('sell');
+                setTradeOpen(true);
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 transition"
+            >
+              <ArrowUpFromLine className="w-4 h-4" />
+              Sell
+            </button>
+          )}
+        </div>
+
         <div className="h-48 mt-4">
           {data.length >= 2 ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -348,6 +418,25 @@ export function StockDetailDialog({
           )}
         </div>
       </DialogContent>
+
+      <TradeDialog
+        open={tradeOpen}
+        onOpenChange={setTradeOpen}
+        ticker={ticker}
+        name={holding.name ?? ticker}
+        apiPrice={Number(holding.current_price ?? 0)}
+        assetClass={aClass}
+        ownedShares={Number(holding.shares ?? 0)}
+        defaultAction={tradeAction}
+        color={color}
+        onTraded={() => {
+          // Bubble up so the parent (InvestmentTab / search flow) can refresh
+          // holdings, summary, allocation. Closing the detail dialog too keeps
+          // the user oriented on whichever view they came from.
+          onTraded?.();
+          onOpenChange(false);
+        }}
+      />
     </Dialog>
   );
 }

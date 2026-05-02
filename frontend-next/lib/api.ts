@@ -173,6 +173,42 @@ export type CalibrationStats = {
   accuracy_pct: number | null;
 };
 
+export type SearchResult = {
+  ticker: string;
+  name: string;
+  current_price?: number | null;
+  previous_close?: number | null;
+  day_change_pct?: number | null;
+  asset_class: string;
+  quote_type?: string | null;
+  is_mutual_fund: boolean;
+  exchange?: string | null;
+  sector?: string | null;
+  currency?: string | null;
+};
+
+export type TradeAction = 'buy' | 'sell';
+
+export type TradeRequest = {
+  ticker: string;
+  action: TradeAction;
+  shares: number;
+  name?: string;
+  asset_class?: string;
+  goal_id?: string;
+  /** On-screen price the user confirmed (matches the live tick). */
+  price?: number;
+};
+
+export type TradeResponse = {
+  action: TradeAction;
+  holding: Holding | null;
+  closed?: boolean;
+  shares_traded: number;
+  price: number;
+  total: number;
+};
+
 async function authHeaders(): Promise<Record<string, string>> {
   try {
     const {
@@ -244,6 +280,14 @@ export const api = {
   holdings: {
     list: () => get<{ holdings: Holding[] }>('/holdings'),
     syncPrices: () => post<{ status: string }>('/holdings/sync-prices', {}),
+    trade: (body: TradeRequest) =>
+      post<TradeResponse>('/holdings/trade', body),
+  },
+  search: {
+    query: (q: string) =>
+      get<{ results: SearchResult[] }>(`/search?q=${encodeURIComponent(q)}`),
+    quote: (ticker: string) =>
+      get<SearchResult>(`/search/quote/${encodeURIComponent(ticker.toUpperCase())}`),
   },
   alerts: {
     list: () => get<{ alerts: Alert[] }>('/alerts'),

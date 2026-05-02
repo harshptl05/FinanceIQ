@@ -13,6 +13,7 @@ import {
   Activity,
   PiggyBank,
   Loader2,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePortfolioData } from '@/hooks/use-portfolio-data';
@@ -25,6 +26,7 @@ import { ActivityTab } from '@/components/tabs/activity-tab';
 import { GoalsTab } from '@/components/tabs/goals-tab';
 import { AITab } from '@/components/ai-tab/ai-tab';
 import { ProfileMenu } from '@/components/profile-menu';
+import { GlobalSearch } from '@/components/global-search';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -42,10 +44,31 @@ export default function PortfolioDashboard() {
   const { session, loading: authLoading, user } = useAuth();
   const data = usePortfolioData();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !session) router.replace('/login');
   }, [authLoading, session, router]);
+
+  // Cmd+K / Ctrl+K opens the global search palette anywhere in the app.
+  // Plain "/" also opens it as long as the user isn't typing in something.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isModK =
+        (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k';
+      const isSlash =
+        e.key === '/' &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target as HTMLElement | null)?.isContentEditable;
+      if (isModK || isSlash) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   if (authLoading || (!session && typeof window !== 'undefined')) {
     return (
@@ -90,6 +113,17 @@ export default function PortfolioDashboard() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSearchOpen(true)}
+              title="Search any stock or fund (⌘K)"
+              className="hidden sm:flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full text-xs font-medium bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200/80 transition"
+            >
+              <Search className="w-3.5 h-3.5 text-gray-500" />
+              <span>Search</span>
+              <kbd className="hidden lg:inline text-[9px] font-medium text-gray-400 bg-white border border-gray-200 px-1 py-0.5 rounded">
+                ⌘K
+              </kbd>
+            </button>
             <button
               onClick={() => void data.syncPrices()}
               title="Pull live prices from Yahoo Finance"
@@ -136,6 +170,13 @@ export default function PortfolioDashboard() {
             <Sparkles className="w-6 h-6 hidden group-hover:block" />
           </button>
         )}
+
+        <GlobalSearch
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          holdings={data.holdings}
+          onTraded={() => void data.refresh()}
+        />
       </div>
     </div>
   );

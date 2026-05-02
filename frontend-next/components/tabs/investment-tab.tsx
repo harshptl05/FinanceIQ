@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowLeftRight,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -10,7 +11,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import type { PortfolioData } from '@/hooks/use-portfolio-data';
-import type { Holding } from '@/lib/api';
+import type { Holding, TradeAction } from '@/lib/api';
 import {
   fmtMoney,
   fmtPct,
@@ -25,6 +26,7 @@ import { TickerLogo } from '@/components/ticker-logo';
 import { LiveMarketCard } from '@/components/live-market-card';
 import { FundOverlapCard } from '@/components/fund-overlap-card';
 import { PortfolioValueChart } from '@/components/portfolio-value-chart';
+import { TradeDialog } from '@/components/trade-dialog';
 import { isMutualFund, formatExpenseRatio } from '@/lib/funds';
 
 // Profit-radial period selector still lives here (its own dropdown).
@@ -63,7 +65,7 @@ function filterHistory(
 }
 
 export function InvestmentTab({ data }: { data: PortfolioData }) {
-  const { loading, summary, history, holdings, news } = data;
+  const { loading, summary, history, holdings, news, refresh } = data;
   const [profitPeriod, setProfitPeriod] = useState<ProfitPeriod>('ALL');
   const [profitPeriodOpen, setProfitPeriodOpen] = useState(false);
 
@@ -71,6 +73,16 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
   const activeHolding = useMemo(
     () => holdings.find((h) => h.ticker === activeTicker) ?? null,
     [activeTicker, holdings],
+  );
+
+  // Direct-from-row trade — opens the trade modal without going through
+  // the full stock detail dialog, for users who already know what they
+  // want to do with a holding.
+  const [tradeTicker, setTradeTicker] = useState<string | null>(null);
+  const [tradeAction, setTradeAction] = useState<TradeAction>('buy');
+  const tradeHolding = useMemo(
+    () => holdings.find((h) => h.ticker === tradeTicker) ?? null,
+    [tradeTicker, holdings],
   );
 
   // Stable per-ticker color map keyed by asset class — blue family for stocks,
@@ -349,61 +361,88 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
                 const fund = isMutualFund(holding ?? null);
                 const er = holding?.expense_ratio ?? null;
                 return (
-                  <button
+                  <div
                     key={asset.ticker}
-                    onClick={() => setActiveTicker(asset.ticker)}
-                    className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-lg hover:bg-gray-50 transition"
+                    className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <TickerLogo
-                        ticker={asset.ticker}
-                        color={asset.color}
-                        size="md"
-                        rounded="lg"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate flex items-center gap-1.5">
-                          {asset.ticker}
-                          {fund ? (
-                            <span className="text-[9px] px-1.5 py-px rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold tracking-wider">
-                              MF
-                            </span>
-                          ) : null}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {asset.name} · {asset.percentage.toFixed(1)}%
-                          {fund && er != null ? (
-                            <>
-                              {' · '}
-                              <span className="text-gray-400">
-                                {formatExpenseRatio(er)} ER
+                    {/* Main row — click opens the detail dialog */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTicker(asset.ticker)}
+                      className="flex-1 flex items-center justify-between text-left min-w-0"
+                      aria-label={`Open ${asset.ticker} details`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <TickerLogo
+                          ticker={asset.ticker}
+                          color={asset.color}
+                          size="md"
+                          rounded="lg"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate flex items-center gap-1.5">
+                            {asset.ticker}
+                            {fund ? (
+                              <span className="text-[9px] px-1.5 py-px rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold tracking-wider">
+                                MF
                               </span>
-                            </>
-                          ) : null}
+                            ) : null}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {asset.name} · {asset.percentage.toFixed(1)}%
+                            {fund && er != null ? (
+                              <>
+                                {' · '}
+                                <span className="text-gray-400">
+                                  {formatExpenseRatio(er)} ER
+                                </span>
+                              </>
+                            ) : null}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right pr-1">
+                        <p className="font-semibold text-sm tabular-nums">
+                          {fmtMoney(asset.value)}
+                        </p>
+                        <p
+                          className={`text-xs font-medium flex items-center justify-end gap-0.5 ${
+                            asset.change >= 0
+                              ? 'text-green-600'
+                              : 'text-rose-500'
+                          }`}
+                        >
+                          {asset.change >= 0 ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
+                          {fmtPct(asset.change, {
+                            withSign: true,
+                            decimals: 2,
+                          })}
                         </p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-sm tabular-nums">
-                        {fmtMoney(asset.value)}
-                      </p>
-                      <p
-                        className={`text-xs font-medium flex items-center justify-end gap-0.5 ${
-                          asset.change >= 0 ? 'text-green-600' : 'text-rose-500'
-                        }`}
-                      >
-                        {asset.change >= 0 ? (
-                          <TrendingUp className="w-3 h-3" />
-                        ) : (
-                          <TrendingDown className="w-3 h-3" />
-                        )}
-                        {fmtPct(asset.change, {
-                          withSign: true,
-                          decimals: 2,
-                        })}
-                      </p>
-                    </div>
-                  </button>
+                    </button>
+
+                    {/* Inline trade trigger — fades in on hover (always visible
+                        on touch devices via the group-hover fallback being
+                        100% on mobile). Tap pre-selects "buy" but the dialog
+                        still lets the user toggle to sell. */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTradeAction('buy');
+                        setTradeTicker(asset.ticker);
+                      }}
+                      title={`Trade ${asset.ticker}`}
+                      aria-label={`Trade ${asset.ticker}`}
+                      className="shrink-0 w-8 h-8 rounded-full bg-white border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 text-gray-500 flex items-center justify-center transition opacity-60 group-hover:opacity-100"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -459,7 +498,23 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
         open={!!activeTicker}
         onOpenChange={(o) => !o && setActiveTicker(null)}
         color={activeTicker ? colorMap[activeTicker] : undefined}
+        onTraded={() => void refresh()}
       />
+
+      {tradeHolding && (
+        <TradeDialog
+          open={!!tradeTicker}
+          onOpenChange={(o) => !o && setTradeTicker(null)}
+          ticker={tradeHolding.ticker}
+          name={tradeHolding.name ?? tradeHolding.ticker}
+          apiPrice={Number(tradeHolding.current_price ?? 0)}
+          assetClass={tradeHolding.asset_class ?? undefined}
+          ownedShares={Number(tradeHolding.shares ?? 0)}
+          defaultAction={tradeAction}
+          color={colorMap[tradeHolding.ticker]}
+          onTraded={() => void refresh()}
+        />
+      )}
     </>
   );
 }

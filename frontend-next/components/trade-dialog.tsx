@@ -158,7 +158,8 @@ export function TradeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-3">
+          {/* pr-8 reserves room for the dialog's small default close X */}
+          <div className="flex items-center gap-3 pr-8">
             <TickerLogo
               ticker={ticker}
               color={color}

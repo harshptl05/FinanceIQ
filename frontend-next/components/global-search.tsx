@@ -167,8 +167,8 @@ export function GlobalSearch({
             <DialogTitle>Search stocks and mutual funds</DialogTitle>
           </DialogHeader>
 
-          {/* Search input row */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+          {/* Search input row — pr keeps the esc hint clear of the dialog's default X */}
+          <div className="flex items-center gap-3 px-4 py-3 pr-10 border-b border-gray-100">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               ref={inputRef}

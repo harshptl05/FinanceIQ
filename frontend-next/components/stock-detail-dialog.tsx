@@ -169,8 +169,8 @@ export function StockDetailDialog({
           </button>
         </DialogClose>
         <DialogHeader>
-          {/* Title row — pr keeps long headings clear of the absolute close */}
-          <div className="flex items-start gap-3 pr-12 sm:pr-14">
+          {/* Title row — pr-14 keeps long headings/badges clear of the absolute X */}
+          <div className="flex items-start gap-3 pr-14 sm:pr-16">
             <TickerLogo
               ticker={ticker}
               color={color}
@@ -202,8 +202,9 @@ export function StockDetailDialog({
               </p>
             </div>
           </div>
-          {/* Desktop/tablet: trade actions on their own row — below the close control */}
-          <div className="hidden sm:flex justify-end gap-1.5 mt-3">
+          {/* Trade actions — separate row left-aligned so they cannot touch the
+              absolute round close button at top-4 right-4 in any layout. */}
+          <div className="hidden sm:flex justify-start gap-1.5 mt-3">
             <button
               type="button"
               onClick={() => {

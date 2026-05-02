@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   CandlestickChart,
@@ -22,6 +22,10 @@ import {
 import { useLivePrices } from '@/lib/live-prices';
 import { useChartMode } from '@/lib/chart-mode';
 import { isMutualFund } from '@/lib/funds';
+import {
+  generateSyntheticHistory,
+  volatilityFor,
+} from '@/lib/market-data';
 import type { Holding } from '@/lib/api';
 
 interface Props {
@@ -90,11 +94,79 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   }, [eligible, active]);
 
   const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
-  const { prices, basePrices, isLive, setIsLive, lastTickAt } =
-    useLivePrices();
+  const { prices, isLive, setIsLive, lastTickAt } = useLivePrices();
   const { kind: chartKind, setKind: setChartKind } = useChartMode();
 
   const activeHolding = eligible.find((h) => h.ticker === active);
+
+  // ────────────────────────────────────────────────────────────────────
+  // Period-aware anchor + change calculation (the brokerage way)
+  // ────────────────────────────────────────────────────────────────────
+  // Brokerages display "% change since the start of the displayed period"
+  // — matching what the chart visually shows. We replicate that by:
+  //   1. Capturing a *stable* anchor price per (ticker, period) the first
+  //      time we observe it. This stops the chart's basePrice prop from
+  //      changing on every live tick (which would remount the chart
+  //      every 2 seconds — disastrous).
+  //   2. Re-running the same deterministic generateSyntheticHistory
+  //      generator the chart uses, with the same inputs, to read off
+  //      the *period start* — i.e. the open of the leftmost bar.
+  //   3. Computing dollar / pct change as `livePrice - periodStart`.
+  //
+  // Result: % matches what the chart visually shows. Switching periods
+  // re-anchors and the % updates instantly. Live ticks keep moving the
+  // numerator while the denominator stays put.
+  const anchorRef = useRef<
+    Record<string, { period: LivePeriod; price: number }>
+  >({});
+
+  const getAnchor = (ticker: string, currentPrice: number): number => {
+    const cached = anchorRef.current[ticker];
+    if (cached?.period === period && cached.price > 0) return cached.price;
+    if (currentPrice > 0) {
+      anchorRef.current[ticker] = { period, price: currentPrice };
+      return currentPrice;
+    }
+    return cached?.price ?? 0;
+  };
+
+  /** Returns {periodStart, dollar, pct} for the given ticker against the
+   *  active period. periodStart is the *open* of the leftmost synthetic
+   *  bar — exactly what the chart renders on the left edge. */
+  const computeChange = (
+    ticker: string,
+    currentPrice: number,
+    assetClass: string | null | undefined,
+  ): { periodStart: number; dollar: number; pct: number } => {
+    if (currentPrice <= 0) {
+      return { periodStart: 0, dollar: 0, pct: 0 };
+    }
+    // Funds + cash don't have a synthetic intraday history (they're
+    // rendered as a flat NAV line) — change relative to the holding's
+    // current price is meaningless. Show 0 here; the dialog/UI knows
+    // to swap the caption to "Last NAV — next update 4:00 PM ET".
+    if (
+      isMutualFund(ticker, assetClass ?? null) ||
+      assetClass === 'cash'
+    ) {
+      return { periodStart: currentPrice, dollar: 0, pct: 0 };
+    }
+    const anchor = getAnchor(ticker, currentPrice);
+    if (anchor <= 0) return { periodStart: 0, dollar: 0, pct: 0 };
+    const cfg = PERIOD_CONFIG[period];
+    const vol = volatilityFor(assetClass);
+    const history = generateSyntheticHistory(
+      ticker,
+      anchor,
+      cfg.bars,
+      vol,
+      cfg.barSec,
+    );
+    const periodStart = history[0]?.open ?? anchor;
+    const dollar = currentPrice - periodStart;
+    const pct = periodStart > 0 ? (dollar / periodStart) * 100 : 0;
+    return { periodStart, dollar, pct };
+  };
 
   if (eligible.length === 0 || !activeHolding) {
     return null;
@@ -102,14 +174,6 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
 
   const apiPrice = Number(activeHolding.current_price ?? 0);
   const livePrice = prices[active] ?? apiPrice;
-  // basePrice = the first simulated tick we ever recorded for this ticker
-  // (captured by LivePricesProvider). This is the natural "open" anchor
-  // for a demo session — the held holding's `current_price` is no good
-  // because use-portfolio-data has already overlaid it with the live tick.
-  const basePrice = basePrices[active] ?? apiPrice;
-  const dollarChange = livePrice - basePrice;
-  const pctChange = basePrice > 0 ? (dollarChange / basePrice) * 100 : 0;
-  const positive = dollarChange >= 0;
 
   const accent = colorMap[active] ?? '#6366F1';
   const isFund = isMutualFund(activeHolding);
@@ -119,6 +183,17 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   // chart in the app to candle or line at once).
   const lockedToLine =
     isFund || activeHolding.asset_class === 'cash';
+
+  // Stable anchor for the active ticker — also passed to MarketChart as
+  // basePrice so the chart only remounts when (ticker, period, kind)
+  // changes, never per-tick.
+  const activeAnchor = isFund
+    ? livePrice // funds: chart is daily-NAV mode, anchor doesn't matter
+    : getAnchor(active, livePrice);
+
+  const { periodStart, dollar: dollarChange, pct: pctChange } =
+    computeChange(active, livePrice, activeHolding.asset_class);
+  const positive = dollarChange >= 0;
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
@@ -207,8 +282,10 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
           {eligible.slice(0, 8).map((h) => {
             const apiP = Number(h.current_price ?? 0);
             const live = prices[h.ticker] ?? apiP;
-            const base = basePrices[h.ticker] ?? apiP;
-            const ch = base > 0 ? ((live - base) / base) * 100 : 0;
+            // Same period-start logic as the active chart, applied per-pill.
+            // For mutual funds / cash this returns 0% which matches their
+            // NAV-only / flat behaviour.
+            const { pct: ch } = computeChange(h.ticker, live, h.asset_class);
             const isActive = h.ticker === active;
             const c = colorMap[h.ticker] ?? '#6366F1';
             return (
@@ -357,11 +434,15 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
         {/* The chart's render kind comes from the global ChartModeProvider
             unless it's a mutual fund / cash holding (forced line by the
             chart itself). Period changes still fully remount via the key
-            so the seeded history regenerates at the new resolution. */}
+            so the seeded history regenerates at the new resolution.
+
+            basePrice is the *stable* per-(ticker,period) anchor — passing
+            livePrice here would change every 2s and remount the chart on
+            every tick, which would obliterate the live ticking effect. */}
         <MarketChart
           key={`${active}-${isFund ? 'nav' : 'live'}-${period}-${chartKind}`}
           ticker={active}
-          basePrice={isFund ? basePrice : livePrice}
+          basePrice={activeAnchor}
           assetClass={activeHolding.asset_class}
           color={accent}
           mode={isFund ? 'daily-nav' : 'live'}

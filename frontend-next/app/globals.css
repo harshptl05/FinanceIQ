@@ -292,27 +292,6 @@ html.dark .text-gray-600 { color: var(--text-secondary); }
 html.dark .text-gray-500 { color: var(--text-secondary); }
 html.dark .text-gray-400 { color: var(--text-tertiary); }
 
-  html.dark .text-slate-900 { color: var(--text-primary); }
-  html.dark .text-slate-800 { color: var(--text-primary); }
-  html.dark .text-slate-700 { color: var(--text-secondary); }
-  html.dark .text-slate-600 { color: var(--text-secondary); }
-  html.dark .text-slate-500 { color: var(--text-secondary); }
-  html.dark .text-slate-400 { color: var(--text-tertiary); }
-
-  /* Tailwind `placeholder:text-gray-*` emits `.placeholder\:text-gray-400::placeholder`
-   * which beats our bare `input::placeholder` rule — force readable placeholders. */
-html.dark .placeholder\:text-gray-300::placeholder,
-html.dark .placeholder\:text-gray-400::placeholder,
-html.dark .placeholder\:text-gray-500::placeholder {
-  color: var(--text-tertiary) !important;
-}
-
-  /* Slate surfaces (AI tool cards, etc.) */
-html.dark .bg-slate-100 {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
   /* ===== bg-black text-white — invert in dark so it stays high-contrast === */
 html.dark .bg-black {
     background-color: var(--text-primary);
@@ -451,6 +430,35 @@ html.dark ::selection {
     background-color: rgba(139, 92, 246, 0.4);
     color: var(--text-primary);
   }
+
+/* ===== AI markdown (react-markdown + prose classes) ======================
+ * Tailwind's prose plugin isn't in this project, but we still use `prose`
+ * utility names for spacing; nested <p>/<li> otherwise keep browser default
+ * (near-black) and vanish on dark cards. Force readable copy here.
+ */
+html.dark .prose,
+html.dark .prose-sm {
+  color: var(--text-secondary);
+}
+html.dark .prose :where(p, li, ul, ol, blockquote, td, th, em) {
+  color: var(--text-secondary);
+}
+html.dark .prose :where(h1, h2, h3, h4, h5, h6, strong) {
+  color: var(--text-primary);
+}
+html.dark .prose :where(a) {
+  color: var(--accent-purple-text);
+}
+html.dark .prose :where(code) {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* slate-* (used on a few icons / labels) */
+html.dark .text-slate-600 { color: var(--text-secondary); }
+html.dark .text-slate-700 { color: var(--text-primary); }
+html.dark .text-slate-800 { color: var(--text-primary); }
+html.dark .text-slate-900 { color: var(--text-primary); }
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {

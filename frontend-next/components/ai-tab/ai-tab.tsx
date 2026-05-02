@@ -402,15 +402,15 @@ function TranslateDialog({
               <div
                 className={`px-3 py-2 rounded-2xl text-sm leading-relaxed max-w-[80%] ${
                   m.role === 'user'
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-primary)]'
+                    ? 'bg-black text-white'
+                    : 'bg-white text-[var(--text-primary)] border border-gray-200'
                 }`}
               >
                 {m.text || (
                   <span className="inline-flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse" />
-                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse [animation-delay:120ms]" />
-                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse [animation-delay:240ms]" />
+                    <span className="w-1.5 h-1.5 bg-[var(--border-secondary)] rounded-full animate-pulse" />
+                    <span className="w-1.5 h-1.5 bg-[var(--border-secondary)] rounded-full animate-pulse [animation-delay:120ms]" />
+                    <span className="w-1.5 h-1.5 bg-[var(--border-secondary)] rounded-full animate-pulse [animation-delay:240ms]" />
                   </span>
                 )}
               </div>
@@ -427,7 +427,7 @@ function TranslateDialog({
               if (e.key === 'Enter') void send();
             }}
             placeholder="Type a term, e.g. expense ratio..."
-            className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-[var(--bg-input)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             onClick={() => void send()}
@@ -826,7 +826,7 @@ export function AITab({ data }: { data: PortfolioData }) {
         {
           icon: Moon,
           iconBg: 'bg-slate-100',
-          iconColor: 'text-slate-700',
+          iconColor: 'text-[var(--text-primary)]',
           title: 'Sleep at night test',
           description:
             "How big a drop could you actually stomach? Most people overestimate. Let's find out honestly.",
@@ -880,15 +880,13 @@ export function AITab({ data }: { data: PortfolioData }) {
   return (
     <div className="flex gap-6 h-[calc(100vh-180px)] min-h-[600px]">
       {/* Sidebar */}
-      <div className="hidden md:flex w-[280px] bg-gray-50 rounded-2xl p-4 flex-col text-[var(--text-primary)]">
+      <div className="hidden md:flex w-[280px] bg-gray-50 rounded-2xl p-4 flex-col">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-[11px] font-semibold flex items-center justify-center">
               {userInitials}
             </div>
-            <span className="text-sm font-semibold capitalize text-[var(--text-primary)]">
-              {userName}
-            </span>
+            <span className="text-sm font-semibold capitalize">{userName}</span>
           </div>
           <ChevronsLeft className="w-4 h-4 text-[var(--text-tertiary)]" />
         </div>
@@ -916,10 +914,10 @@ export function AITab({ data }: { data: PortfolioData }) {
               <button
                 key={item.id}
                 onClick={() => setPanel(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg ${
                   active
-                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] font-semibold shadow-sm border border-[var(--border-primary)]'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+                    ? 'bg-white text-[var(--text-primary)] font-semibold shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-white'
                 }`}
               >
                 <Active className="w-4 h-4" />
@@ -932,14 +930,14 @@ export function AITab({ data }: { data: PortfolioData }) {
               setTimeMachineKey(undefined);
               setTimeMachineOpen(true);
             }}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:bg-white"
           >
             <History className="w-4 h-4" />
             <span className="text-sm">Time machine</span>
           </button>
           <button
             onClick={() => setTranslateOpen(true)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:bg-white"
           >
             <Languages className="w-4 h-4" />
             <span className="text-sm">Translate jargon</span>
@@ -1019,7 +1017,7 @@ export function AITab({ data }: { data: PortfolioData }) {
             />
           ) : messages.length === 0 ? (
             <>
-              <h1 className="text-3xl sm:text-[32px] font-bold mb-1 capitalize text-[var(--text-primary)]">
+              <h1 className="text-3xl sm:text-[32px] font-bold mb-1 capitalize">
                 Welcome back,{' '}
                 <span className="bg-yellow-100 px-1 rounded">{userName}</span>
           </h1>
@@ -1068,7 +1066,7 @@ export function AITab({ data }: { data: PortfolioData }) {
             </div>
           </div>
 
-          <h2 className="text-lg font-bold mb-4 text-[var(--text-primary)]">Your money tools</h2>
+          <h2 className="text-lg font-bold mb-4">Your money tools</h2>
 
           {toolCards.map((section) => (
             <div key={section.section} className="mb-6">
@@ -1080,7 +1078,7 @@ export function AITab({ data }: { data: PortfolioData }) {
                       <button
                     key={card.title}
                     onClick={card.onClick}
-                        className="bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-md transition cursor-pointer hover:scale-[1.01] relative group text-left text-[var(--text-primary)]"
+                        className="bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-md transition cursor-pointer hover:scale-[1.01] relative group text-left"
                       >
                         <div
                           className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}
@@ -1089,10 +1087,10 @@ export function AITab({ data }: { data: PortfolioData }) {
                             className={`w-5 h-5 ${card.iconColor}`}
                           />
                     </div>
-                        <p className="text-[15px] font-semibold mt-3 mb-1 text-[var(--text-primary)]">
+                        <p className="text-[15px] font-semibold mt-3 mb-1">
                           {card.title}
                         </p>
-                        <p className="text-[13px] text-[var(--text-tertiary)] line-clamp-3">
+                        <p className="text-[13px] text-[var(--text-secondary)] line-clamp-3">
                           {card.description}
                         </p>
                     <ArrowUpRight className="w-4 h-4 text-[var(--text-tertiary)] absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1117,8 +1115,8 @@ export function AITab({ data }: { data: PortfolioData }) {
                   <div
                     className={`max-w-[80%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${
                       m.role === 'user'
-                        ? 'bg-violet-600 text-white shadow-sm [&_p]:text-white'
-                        : 'bg-[var(--bg-card)] border border-[var(--border-primary)] shadow-sm text-[var(--text-primary)]'
+                        ? 'bg-black text-white'
+                        : 'bg-white border border-gray-100 shadow-sm text-[var(--text-primary)]'
                     }`}
                   >
                     {m.tools && m.tools.length > 0 && (
@@ -1139,16 +1137,16 @@ export function AITab({ data }: { data: PortfolioData }) {
                     )}
                     {m.role === 'assistant' ? (
                       m.content ? (
-                        <div className="prose prose-sm max-w-none prose-p:my-2 prose-li:my-0 prose-headings:my-2 [&_p]:text-[var(--text-primary)] [&_li]:text-[var(--text-primary)] [&_strong]:text-[var(--text-primary)] [&_h1]:text-[var(--text-primary)] [&_h2]:text-[var(--text-primary)] [&_h3]:text-[var(--text-primary)] [&_blockquote]:text-[var(--text-secondary)] [&_a]:text-[var(--accent-purple-text)] [&_code]:rounded [&_code]:bg-[var(--bg-tertiary)] [&_code]:px-1 [&_code]:text-[var(--text-primary)]">
+                        <div className="prose prose-sm max-w-none prose-p:my-2 prose-li:my-0 prose-headings:my-2">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {m.content}
                           </ReactMarkdown>
                         </div>
                       ) : (
                         <span className="inline-flex gap-1 items-center text-[var(--text-tertiary)]">
-                          <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse" />
-                          <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse [animation-delay:120ms]" />
-                          <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse [animation-delay:240ms]" />
+                          <span className="w-1.5 h-1.5 bg-[var(--border-secondary)] rounded-full animate-pulse" />
+                          <span className="w-1.5 h-1.5 bg-[var(--border-secondary)] rounded-full animate-pulse [animation-delay:120ms]" />
+                          <span className="w-1.5 h-1.5 bg-[var(--border-secondary)] rounded-full animate-pulse [animation-delay:240ms]" />
                         </span>
                       )
                     ) : (
@@ -1168,12 +1166,12 @@ export function AITab({ data }: { data: PortfolioData }) {
         </div>
 
         {/* Input */}
-        <div className="sticky bottom-0 bg-[var(--bg-card)] pt-4 border-t border-[var(--border-primary)]">
+        <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
           {/* Voice live strip — only renders when a voice session is active. */}
           <VoiceErrorBanner />
           <VoiceLiveStrip />
 
-          <div className="bg-[var(--bg-secondary)] rounded-2xl p-3 flex items-center gap-2 border border-[var(--border-primary)]">
+          <div className="bg-gray-50 rounded-2xl p-3 flex items-center gap-2">
             <button
               onClick={startNewChat}
               className="w-8 h-8 rounded-full bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center shrink-0"
@@ -1190,7 +1188,7 @@ export function AITab({ data }: { data: PortfolioData }) {
               }}
               disabled={busy}
               placeholder="Ask anything about your money. The advisor sees your real holdings and goals."
-              className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] disabled:opacity-50"
+              className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-[var(--text-tertiary)] disabled:opacity-50"
             />
             {/* Mic — ChatGPT/Claude style. Click to start/stop voice chat. */}
             <VoiceComposerButton disabled={busy} />
@@ -1199,7 +1197,7 @@ export function AITab({ data }: { data: PortfolioData }) {
               disabled={busy || !input.trim()}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition shrink-0 ${
                 busy || !input.trim()
-                  ? 'bg-gray-300 text-white cursor-not-allowed'
+                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] cursor-not-allowed opacity-80'
                   : 'bg-black text-white hover:bg-gray-800'
               }`}
               title="Send"
@@ -1217,7 +1215,7 @@ export function AITab({ data }: { data: PortfolioData }) {
                 key={chip}
                 onClick={() => void send(chip)}
                 disabled={busy}
-                className="px-3 py-1 rounded-full border border-[var(--border-primary)] text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] disabled:opacity-50"
+                className="px-3 py-1 rounded-full border border-gray-200 text-[12px] text-[var(--text-primary)] hover:bg-gray-50 disabled:opacity-50"
               >
                 {chip}
               </button>
@@ -1309,7 +1307,7 @@ function InsightsPanel({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">My insights</h1>
+        <h1 className="text-2xl font-bold mb-1">My insights</h1>
         <p className="text-[var(--text-secondary)] text-sm">
           Personalized observations the advisor sees in your portfolio right now.
         </p>
@@ -1324,13 +1322,13 @@ function InsightsPanel({
             <div className="flex items-start gap-3">
               <Lightbulb className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="font-semibold text-[15px] mb-1 text-[var(--text-primary)]">{ins.title}</p>
-                <p className="text-sm text-[var(--text-secondary)]">{ins.body}</p>
+                <p className="font-semibold text-[15px] mb-1">{ins.title}</p>
+                <p className="text-sm text-[var(--text-primary)]">{ins.body}</p>
             </div>
             </div>
             <button
               onClick={() => onAsk(ins.cta)}
-              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent-purple)]"
+              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--text-primary)] hover:text-indigo-600"
             >
               Ask the advisor about this
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1340,7 +1338,7 @@ function InsightsPanel({
           </div>
 
             <div>
-        <h2 className="text-base font-semibold mb-2 text-[var(--text-primary)]">Your recent questions</h2>
+        <h2 className="text-base font-semibold mb-2">Your recent questions</h2>
         {userQs.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">
             You haven&apos;t asked anything yet — pick a card above to get started.
@@ -1351,7 +1349,7 @@ function InsightsPanel({
               <button
                 key={i}
                 onClick={() => onAsk(q.content)}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-card-hover)] text-sm text-[var(--text-primary)] transition flex items-center justify-between gap-2"
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)] transition flex items-center justify-between gap-2"
               >
                 <span className="truncate">{q.content}</span>
                 <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
@@ -1386,7 +1384,7 @@ function SavedScenariosPanel({ onRun }: { onRun: (key: string) => void }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">Saved scenarios</h1>
+        <h1 className="text-2xl font-bold mb-1">Saved scenarios</h1>
         <p className="text-[var(--text-secondary)] text-sm">
           Macro stress tests you can re-run any time against your real holdings.
         </p>
@@ -1411,7 +1409,7 @@ function SavedScenariosPanel({ onRun }: { onRun: (key: string) => void }) {
                 <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
                   <History className="w-5 h-5 text-indigo-600" />
                 </div>
-                <p className="font-semibold text-[15px] text-[var(--text-primary)]">{s.name}</p>
+                <p className="font-semibold text-[15px]">{s.name}</p>
               </div>
               <p className="text-sm text-[var(--text-secondary)] mb-3">{s.description}</p>
               <div className="flex items-center justify-between">
@@ -1469,7 +1467,7 @@ function StartersPanel({ onPick }: { onPick: (q: string) => void }) {
   return (
     <div className="space-y-6">
             <div>
-        <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">Conversation starters</h1>
+        <h1 className="text-2xl font-bold mb-1">Conversation starters</h1>
         <p className="text-[var(--text-secondary)] text-sm">
           Curated questions to get the most out of your AI advisor. Click one to
           start the conversation.
@@ -1486,7 +1484,7 @@ function StartersPanel({ onPick }: { onPick: (q: string) => void }) {
                 <button
                   key={q}
                   onClick={() => onPick(q)}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-card-hover)] text-sm text-[var(--text-primary)] transition flex items-center justify-between gap-2 group"
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm transition flex items-center justify-between gap-2 group"
                 >
                   <span>{q}</span>
                   <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-indigo-600 shrink-0" />
@@ -1586,9 +1584,7 @@ function ConversationList({
                   >
                     <span
                       className={
-                        active
-                          ? 'text-[var(--text-primary)] font-semibold'
-                          : 'text-[var(--text-secondary)]'
+                        active ? 'text-[var(--text-primary)] font-medium' : 'text-[var(--text-primary)]'
                       }
                     >
                       {c.title ?? 'Untitled chat'}

@@ -31,7 +31,14 @@ type LivePrices = Record<string, number>;
 
 type LivePricesContextValue = {
   prices: LivePrices;
+  /** First simulated tick we ever saw for each ticker — the natural "open"
+   *  for a demo session. Used by anything that wants a "since open" %.
+   *  `resetBase(ticker)` clears it so the next tick becomes a new anchor. */
+  basePrices: LivePrices;
   setPrice: (ticker: string, price: number) => void;
+  /** Drop the captured base for a ticker. Call when a chart remounts for
+   *  the same ticker so "since open" restarts from the new first tick. */
+  resetBase: (ticker: string) => void;
   /** Toggle simulation on/off globally. When false, overlay is bypassed. */
   isLive: boolean;
   setIsLive: (b: boolean) => void;
@@ -43,7 +50,9 @@ const LivePricesContext = createContext<LivePricesContextValue | null>(null);
 
 const NOOP_VALUE: LivePricesContextValue = {
   prices: {},
+  basePrices: {},
   setPrice: () => {},
+  resetBase: () => {},
   isLive: false,
   setIsLive: () => {},
   lastTickAt: null,
@@ -51,6 +60,7 @@ const NOOP_VALUE: LivePricesContextValue = {
 
 export function LivePricesProvider({ children }: { children: ReactNode }) {
   const [prices, setPrices] = useState<LivePrices>({});
+  const [basePrices, setBasePrices] = useState<LivePrices>({});
   const [isLive, setIsLive] = useState<boolean>(true);
   const [lastTickAt, setLastTickAt] = useState<number | null>(null);
 
@@ -60,18 +70,42 @@ export function LivePricesProvider({ children }: { children: ReactNode }) {
     // tick second-by-second would be inaccurate and erode demo trust —
     // skip the live overlay for them and let the last-known price stand.
     if (isMutualFund(ticker)) return;
+    const rounded = Math.round(price * 10000) / 10000;
     setPrices((prev) => {
-      // Round to 4 decimals to avoid floating-point churn when comparing.
-      const rounded = Math.round(price * 10000) / 10000;
       if (prev[ticker] === rounded) return prev;
+      return { ...prev, [ticker]: rounded };
+    });
+    // Anchor the "open" price the first time we see this ticker. Subsequent
+    // ticks don't move the base — that's what gives us a meaningful
+    // "since open" percentage even after thousands of ticks.
+    setBasePrices((prev) => {
+      if (prev[ticker] !== undefined) return prev;
       return { ...prev, [ticker]: rounded };
     });
     setLastTickAt(Date.now());
   }, []);
 
+  const resetBase = useCallback((ticker: string) => {
+    if (!ticker) return;
+    setBasePrices((prev) => {
+      if (prev[ticker] === undefined) return prev;
+      const next = { ...prev };
+      delete next[ticker];
+      return next;
+    });
+  }, []);
+
   const value = useMemo(
-    () => ({ prices, setPrice, isLive, setIsLive, lastTickAt }),
-    [prices, setPrice, isLive, lastTickAt],
+    () => ({
+      prices,
+      basePrices,
+      setPrice,
+      resetBase,
+      isLive,
+      setIsLive,
+      lastTickAt,
+    }),
+    [prices, basePrices, setPrice, resetBase, isLive, lastTickAt],
   );
 
   return (
@@ -89,6 +123,14 @@ export function useLivePrices(): LivePricesContextValue {
 export function useLivePrice(ticker: string): number | undefined {
   const { prices, isLive } = useLivePrices();
   return isLive ? prices[ticker] : undefined;
+}
+
+/** Returns the captured "open" price for a ticker — the first tick we
+ *  saw this session. Pair with useLivePrice to compute a live since-open
+ *  percentage that actually moves. */
+export function useBasePrice(ticker: string): number | undefined {
+  const { basePrices } = useLivePrices();
+  return basePrices[ticker];
 }
 
 /** Convenience for components that just need a stable setter (e.g. a chart

@@ -62,7 +62,8 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   }, [eligible, active]);
 
   const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
-  const { prices, isLive, setIsLive, lastTickAt } = useLivePrices();
+  const { prices, basePrices, isLive, setIsLive, lastTickAt } =
+    useLivePrices();
 
   const activeHolding = eligible.find((h) => h.ticker === active);
 
@@ -70,8 +71,13 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
     return null;
   }
 
-  const livePrice = prices[active] ?? Number(activeHolding.current_price ?? 0);
-  const basePrice = Number(activeHolding.current_price ?? 0);
+  const apiPrice = Number(activeHolding.current_price ?? 0);
+  const livePrice = prices[active] ?? apiPrice;
+  // basePrice = the first simulated tick we ever recorded for this ticker
+  // (captured by LivePricesProvider). This is the natural "open" anchor
+  // for a demo session — the held holding's `current_price` is no good
+  // because use-portfolio-data has already overlaid it with the live tick.
+  const basePrice = basePrices[active] ?? apiPrice;
   const dollarChange = livePrice - basePrice;
   const pctChange = basePrice > 0 ? (dollarChange / basePrice) * 100 : 0;
   const positive = dollarChange >= 0;
@@ -152,8 +158,9 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
         {/* Ticker pill row — auto-scrolls horizontally if too many */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
           {eligible.slice(0, 8).map((h) => {
-            const live = prices[h.ticker] ?? Number(h.current_price ?? 0);
-            const base = Number(h.current_price ?? 0);
+            const apiP = Number(h.current_price ?? 0);
+            const live = prices[h.ticker] ?? apiP;
+            const base = basePrices[h.ticker] ?? apiP;
             const ch = base > 0 ? ((live - base) / base) * 100 : 0;
             const isActive = h.ticker === active;
             const c = colorMap[h.ticker] ?? '#6366F1';

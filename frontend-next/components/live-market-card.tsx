@@ -23,7 +23,25 @@ import { useLivePrices } from '@/lib/live-prices';
 import { useChartMode } from '@/lib/chart-mode';
 import { isMutualFund } from '@/lib/funds';
 import { periodStartPriceFor } from '@/lib/market-data';
+import {
+  effectiveHoldingPrice,
+  effectiveHoldingValue,
+} from '@/lib/holding-quote';
 import type { Holding } from '@/lib/api';
+
+function livePxFromMap(
+  map: Record<string, number>,
+  ticker: string,
+  fallback: number,
+): number {
+  if (!ticker) return fallback;
+  return (
+    map[ticker] ??
+    map[ticker.toUpperCase()] ??
+    map[ticker.toLowerCase()] ??
+    fallback
+  );
+}
 
 interface Props {
   holdings: Holding[];
@@ -93,15 +111,39 @@ function isMoneyMarketFund(holding: { ticker: string; asset_class?: string | nul
 export function LiveMarketCard({ holdings, initialTicker }: Props) {
   const [period, setPeriod] = useState<LivePeriod>('1D');
   const [fundPeriod, setFundPeriod] = useState<FundPeriod>('3M');
+
+  /** Coerce zero/missing `current_price` using value/shares or cost basis
+   *  so a fresh buy (e.g. META) still appears in the pill row + chart. */
+  const listings = useMemo(
+    () =>
+      holdings.map((h) => {
+        const cp = Number(h.current_price ?? 0);
+        if (cp > 0) return h;
+        const eff = effectiveHoldingPrice(h);
+        if (eff <= 0) return h;
+        const sh = Number(h.shares ?? 0);
+        return {
+          ...h,
+          current_price: eff,
+          current_value:
+            sh > 0 ? sh * eff : Number(h.current_value ?? 0),
+        };
+      }),
+    [holdings],
+  );
+
   const eligible = useMemo(
     () =>
-      holdings
-        .filter((h) => Number(h.current_price ?? 0) > 0)
+      listings
+        .filter(
+          (h) =>
+            Number(h.shares ?? 0) > 0 && effectiveHoldingPrice(h) > 0,
+        )
         .sort(
           (a, b) =>
-            Number(b.current_value ?? 0) - Number(a.current_value ?? 0),
+            effectiveHoldingValue(b) - effectiveHoldingValue(a),
         ),
-    [holdings],
+    [listings],
   );
 
   const [active, setActive] = useState<string>(
@@ -199,7 +241,7 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   }
 
   const apiPrice = Number(activeHolding.current_price ?? 0);
-  const livePrice = prices[active] ?? apiPrice;
+  const livePrice = livePxFromMap(prices, active, apiPrice);
 
   const accent = colorMap[active] ?? '#6366F1';
   const isFund = isMutualFund(activeHolding);
@@ -335,7 +377,7 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
           {eligible.map((h) => {
             const apiP = Number(h.current_price ?? 0);
-            const live = prices[h.ticker] ?? apiP;
+            const live = livePxFromMap(prices, h.ticker, apiP);
             // Same period-start logic as the active chart, applied per-pill.
             // For mutual funds / cash this returns 0% which matches their
             // NAV-only / flat behaviour.

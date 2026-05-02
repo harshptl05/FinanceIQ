@@ -28,6 +28,10 @@ import { FundOverlapCard } from '@/components/fund-overlap-card';
 import { PortfolioValueChart } from '@/components/portfolio-value-chart';
 import { TradeDialog } from '@/components/trade-dialog';
 import { isMutualFund, formatExpenseRatio } from '@/lib/funds';
+import {
+  effectiveHoldingPrice,
+  effectiveHoldingValue,
+} from '@/lib/holding-quote';
 
 // Profit-radial period selector still lives here (its own dropdown).
 type ProfitPeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
@@ -162,18 +166,23 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
   const topMovers = useMemo(() => {
     const movers = holdings
       .map((h) => {
-        const cv = Number(h.current_value ?? 0);
+        const cv = effectiveHoldingValue(h);
         const cost = Number(h.shares ?? 0) * Number(h.avg_cost_basis ?? 0);
         const change = cost > 0 ? ((cv - cost) / cost) * 100 : 0;
         return {
           ticker: h.ticker,
-          price: Number(h.current_price ?? 0),
+          price: effectiveHoldingPrice(h),
           change,
+          value: cv,
           color: colorMap[h.ticker] ?? '#6366F1',
         };
       })
-      .filter((h) => Number.isFinite(h.change))
-      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+      .filter((h) => Number.isFinite(h.change) && h.price > 0)
+      .sort((a, b) => {
+        const byVal = b.value - a.value;
+        if (Math.abs(byVal) > 0.005) return byVal;
+        return Math.abs(b.change) - Math.abs(a.change);
+      });
     return movers;
   }, [holdings, colorMap]);
 

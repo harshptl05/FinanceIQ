@@ -136,7 +136,7 @@ function TimeMachineDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           {/* pr-8 reserves room for the dialog's small default close X */}
           <div className="flex items-center gap-3 mb-2 pr-8">
@@ -360,7 +360,7 @@ function TranslateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           {/* pr-8 reserves room for the dialog's small default close X */}
           <div className="flex items-center gap-3 mb-1 pr-8">

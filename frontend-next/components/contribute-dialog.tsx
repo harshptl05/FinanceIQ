@@ -53,7 +53,7 @@ export function ContributeDialog({ open, onOpenChange, goal, onSaved }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0" showCloseButton={false}>
+      <DialogContent className="sm:max-w-lg p-0 gap-0" showCloseButton={false}>
         <DialogClose asChild>
           <button
             type="button"

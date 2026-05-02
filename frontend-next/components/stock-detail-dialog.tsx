@@ -156,7 +156,10 @@ export function StockDetailDialog({
       {/* showCloseButton={false}: custom round close top-right. Buy/Sell are on a
           separate row below the title so they never share the same band as the X. */}
       <DialogContent
-        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        // sm: prefix is REQUIRED — without it, dialog.tsx's default
+        // `sm:max-w-lg` wins via the CSS cascade and the modal is clipped to
+        // ~512px on desktop, which forces Buy/Sell next to the X.
+        className="sm:max-w-3xl max-h-[90vh] overflow-y-auto"
         showCloseButton={false}
       >
         <DialogClose asChild>

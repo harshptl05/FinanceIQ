@@ -195,7 +195,8 @@ export function TickerPreviewDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         {/* Custom close: padding-top on header clears it; Yahoo link uses mr-16 */}
         <DialogContent
-          className="max-w-2xl p-0 gap-0 overflow-hidden"
+          // sm: prefix required so we override the default sm:max-w-lg cap.
+          className="sm:max-w-3xl p-0 gap-0 overflow-hidden"
           showCloseButton={false}
         >
           <DialogClose asChild>

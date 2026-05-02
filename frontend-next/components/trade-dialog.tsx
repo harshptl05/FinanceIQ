@@ -156,7 +156,7 @@ export function TradeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           {/* pr-8 reserves room for the dialog's small default close X */}
           <div className="flex items-center gap-3 pr-8">

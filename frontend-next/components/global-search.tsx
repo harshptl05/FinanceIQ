@@ -161,7 +161,7 @@ export function GlobalSearch({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-xl p-0 gap-0 overflow-hidden">
+        <DialogContent className="sm:max-w-2xl p-0 gap-0 overflow-hidden">
           {/* a11y: keep DialogTitle present but visually hide it */}
           <DialogHeader className="sr-only">
             <DialogTitle>Search stocks and mutual funds</DialogTitle>

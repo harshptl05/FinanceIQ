@@ -15,9 +15,11 @@ import {
   TrendingDown,
   TrendingUp,
   Clock,
+  X,
 } from 'lucide-react';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -151,7 +153,22 @@ export function StockDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* showCloseButton={false} disables the tiny default X we used to
+          fight with `mr-8`. We render our own circular close button below
+          — it sits in its own corner so it never overlaps Buy/Sell. */}
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        showCloseButton={false}
+      >
+        <DialogClose asChild>
+          <button
+            type="button"
+            aria-label="Close"
+            className="absolute top-3 right-3 z-20 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition focus:outline-hidden focus:ring-2 focus:ring-gray-300"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </DialogClose>
         <DialogHeader>
           <div className="flex items-start gap-3">
             <TickerLogo
@@ -188,10 +205,10 @@ export function StockDetailDialog({
                 or sell is always one tap away, no menu hunting. Sell is
                 hidden when the user doesn't actually own this ticker
                 (i.e. opened from search).
-                The mr-8 reserves room for the dialog's absolute-positioned
-                close (X) button which sits at top-4 right-4 — without it
-                the X would sit on top of the Sell pill. */}
-            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mt-1 mr-8">
+                The trailing mr-12 keeps the buttons clear of the custom
+                circular close button at top-3 right-3 — gives the X its
+                own corner so it never visually clashes. */}
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mt-1 mr-12">
               <button
                 type="button"
                 onClick={() => {

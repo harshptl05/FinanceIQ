@@ -9,9 +9,11 @@ import {
   LineChart as LineChartIcon,
   TrendingDown,
   TrendingUp,
+  X,
 } from 'lucide-react';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -191,7 +193,23 @@ export function TickerPreviewDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+        {/* Custom close button — see stock-detail-dialog for rationale.
+            The default tiny X at top-4 right-4 was cramped against the
+            Yahoo link / Buy-Sell row. We render a circular button at
+            top-3 right-3 so the X has its own clear corner. */}
+        <DialogContent
+          className="max-w-2xl p-0 gap-0 overflow-hidden"
+          showCloseButton={false}
+        >
+          <DialogClose asChild>
+            <button
+              type="button"
+              aria-label="Close"
+              className="absolute top-3 right-3 z-30 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition focus:outline-hidden focus:ring-2 focus:ring-gray-300"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </DialogClose>
           <DialogHeader className="sr-only">
             <DialogTitle>
               {fullResult.ticker} – {fullResult.name}
@@ -233,10 +251,9 @@ export function TickerPreviewDialog({
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    /* mr-7 reserves room for the dialog's absolute X
-                       close button (top-4 right-4) so this link
-                       doesn't sit underneath it. */
-                    className="ml-auto mr-7 text-[11px] text-gray-400 hover:text-gray-600 inline-flex items-center gap-1"
+                    /* mr-12 keeps clear of the custom round close button
+                       at top-3 right-3 so the link never tucks under it. */
+                    className="ml-auto mr-12 text-[11px] text-gray-400 hover:text-gray-600 inline-flex items-center gap-1"
                   >
                     Yahoo <ExternalLink className="w-3 h-3" />
                   </a>

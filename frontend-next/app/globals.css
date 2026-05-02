@@ -292,6 +292,27 @@ html.dark .text-gray-600 { color: var(--text-secondary); }
 html.dark .text-gray-500 { color: var(--text-secondary); }
 html.dark .text-gray-400 { color: var(--text-tertiary); }
 
+  html.dark .text-slate-900 { color: var(--text-primary); }
+  html.dark .text-slate-800 { color: var(--text-primary); }
+  html.dark .text-slate-700 { color: var(--text-secondary); }
+  html.dark .text-slate-600 { color: var(--text-secondary); }
+  html.dark .text-slate-500 { color: var(--text-secondary); }
+  html.dark .text-slate-400 { color: var(--text-tertiary); }
+
+  /* Tailwind `placeholder:text-gray-*` emits `.placeholder\:text-gray-400::placeholder`
+   * which beats our bare `input::placeholder` rule — force readable placeholders. */
+html.dark .placeholder\:text-gray-300::placeholder,
+html.dark .placeholder\:text-gray-400::placeholder,
+html.dark .placeholder\:text-gray-500::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+  /* Slate surfaces (AI tool cards, etc.) */
+html.dark .bg-slate-100 {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
   /* ===== bg-black text-white — invert in dark so it stays high-contrast === */
 html.dark .bg-black {
     background-color: var(--text-primary);

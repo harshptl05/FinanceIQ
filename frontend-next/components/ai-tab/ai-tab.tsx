@@ -158,7 +158,7 @@ function TimeMachineDialog({
             </div>
             <DialogTitle className="text-xl">Portfolio time machine</DialogTitle>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--text-secondary)]">
             Drag the slider to a past crisis. We&apos;ll show how{' '}
             <span className="font-semibold tabular-nums">
               {fmtMoney(totalValue)}
@@ -168,7 +168,7 @@ function TimeMachineDialog({
         </DialogHeader>
 
         <div className="my-6">
-          <div className="flex justify-between text-xs text-gray-500 mb-2 flex-wrap gap-2">
+          <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-2 flex-wrap gap-2">
             {SCENARIO_OPTIONS.map((s, i) => (
               <span
                 key={s.key}
@@ -197,7 +197,7 @@ function TimeMachineDialog({
         )}
 
         {loading && (
-          <div className="h-56 flex items-center justify-center text-gray-400">
+          <div className="h-56 flex items-center justify-center text-[var(--text-tertiary)]">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         )}
@@ -206,13 +206,13 @@ function TimeMachineDialog({
           <>
             <div className="bg-gray-50 rounded-xl p-4 mb-4 flex items-center justify-between flex-wrap gap-3">
               <div>
-                <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                <div className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wide">
                   {result.scenario}
                 </div>
                 <div className="text-2xl font-bold mt-1 tabular-nums">
                   {fmtMoney(result.total_portfolio_after)}
                 </div>
-                <div className="text-xs text-gray-500">at the bottom</div>
+                <div className="text-xs text-[var(--text-secondary)]">at the bottom</div>
               </div>
               <div className="flex gap-6">
                 <div className="text-center">
@@ -226,13 +226,13 @@ function TimeMachineDialog({
                     )}
                     {fmtPct(result.total_pct_impact, { decimals: 1 })}
                   </div>
-                  <div className="text-xs text-gray-500">vs today</div>
+                  <div className="text-xs text-[var(--text-secondary)]">vs today</div>
                 </div>
                 <div className="text-center">
-                  <div className="font-bold text-lg text-gray-900">
+                  <div className="font-bold text-lg text-[var(--text-primary)]">
                     {result.duration_months}mo
                   </div>
-                  <div className="text-xs text-gray-500">duration</div>
+                  <div className="text-xs text-[var(--text-secondary)]">duration</div>
                 </div>
               </div>
             </div>
@@ -382,7 +382,7 @@ function TranslateDialog({
             </div>
             <DialogTitle className="text-xl">Translate jargon</DialogTitle>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--text-secondary)]">
             Powered by Claude — answers come from the same advisor that knows
             your portfolio.
           </p>
@@ -402,8 +402,8 @@ function TranslateDialog({
               <div
                 className={`px-3 py-2 rounded-2xl text-sm leading-relaxed max-w-[80%] ${
                   m.role === 'user'
-                    ? 'bg-black text-white'
-                    : 'bg-white text-gray-900 border border-gray-200'
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-primary)]'
                 }`}
               >
                 {m.text || (
@@ -427,7 +427,7 @@ function TranslateDialog({
               if (e.key === 'Enter') void send();
             }}
             placeholder="Type a term, e.g. expense ratio..."
-            className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-[var(--bg-input)] focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             onClick={() => void send()}
@@ -880,15 +880,17 @@ export function AITab({ data }: { data: PortfolioData }) {
   return (
     <div className="flex gap-6 h-[calc(100vh-180px)] min-h-[600px]">
       {/* Sidebar */}
-      <div className="hidden md:flex w-[280px] bg-gray-50 rounded-2xl p-4 flex-col">
+      <div className="hidden md:flex w-[280px] bg-gray-50 rounded-2xl p-4 flex-col text-[var(--text-primary)]">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-[11px] font-semibold flex items-center justify-center">
               {userInitials}
             </div>
-            <span className="text-sm font-semibold capitalize">{userName}</span>
+            <span className="text-sm font-semibold capitalize text-[var(--text-primary)]">
+              {userName}
+            </span>
           </div>
-          <ChevronsLeft className="w-4 h-4 text-gray-400" />
+          <ChevronsLeft className="w-4 h-4 text-[var(--text-tertiary)]" />
         </div>
 
         <button
@@ -914,10 +916,10 @@ export function AITab({ data }: { data: PortfolioData }) {
               <button
                 key={item.id}
                 onClick={() => setPanel(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg ${
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                   active
-                    ? 'bg-white text-gray-900 font-semibold shadow-sm'
-                    : 'text-gray-600 hover:bg-white'
+                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] font-semibold shadow-sm border border-[var(--border-primary)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
                 }`}
               >
                 <Active className="w-4 h-4" />
@@ -930,14 +932,14 @@ export function AITab({ data }: { data: PortfolioData }) {
               setTimeMachineKey(undefined);
               setTimeMachineOpen(true);
             }}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] transition-colors"
           >
             <History className="w-4 h-4" />
             <span className="text-sm">Time machine</span>
           </button>
           <button
             onClick={() => setTranslateOpen(true)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] transition-colors"
           >
             <Languages className="w-4 h-4" />
             <span className="text-sm">Translate jargon</span>
@@ -955,12 +957,12 @@ export function AITab({ data }: { data: PortfolioData }) {
         <div className="bg-white rounded-xl p-3 mt-4">
           <div className="flex items-center gap-1.5 mb-1">
             <Wallet className="w-3 h-3 text-indigo-600" />
-            <span className="text-[11px] text-gray-500">Portfolio value</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">Portfolio value</span>
           </div>
           <p className="text-xl font-bold tabular-nums">
             {fmtMoney(totalValue)}
           </p>
-          <p className="text-[11px] text-gray-400 mb-2">
+          <p className="text-[11px] text-[var(--text-tertiary)] mb-2">
             {data.holdings.length} holdings
           </p>
           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -976,12 +978,12 @@ export function AITab({ data }: { data: PortfolioData }) {
         <div className="flex justify-between items-center mt-3">
           <button
             onClick={() => void data.refresh()}
-            className="flex items-center gap-1 text-[12px] text-gray-500 hover:text-gray-700"
+            className="flex items-center gap-1 text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <RefreshCcw className="w-3 h-3" />
             Refresh data
           </button>
-          <button className="flex items-center gap-1 text-[12px] text-gray-500 hover:text-gray-700">
+          <button className="flex items-center gap-1 text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
             <Settings className="w-3 h-3" />
             Settings
           </button>
@@ -1017,11 +1019,11 @@ export function AITab({ data }: { data: PortfolioData }) {
             />
           ) : messages.length === 0 ? (
             <>
-              <h1 className="text-3xl sm:text-[32px] font-bold mb-1 capitalize">
+              <h1 className="text-3xl sm:text-[32px] font-bold mb-1 capitalize text-[var(--text-primary)]">
                 Welcome back,{' '}
                 <span className="bg-yellow-100 px-1 rounded">{userName}</span>
           </h1>
-              <p className="text-2xl font-medium text-gray-400 mb-8">
+              <p className="text-2xl font-medium text-[var(--text-tertiary)] mb-8">
                 How can I help with your money today?
               </p>
 
@@ -1034,10 +1036,10 @@ export function AITab({ data }: { data: PortfolioData }) {
                   <p className="text-[11px] text-purple-700 font-medium uppercase tracking-wide mb-1">
                     Try this
                   </p>
-                  <p className="text-[15px] font-semibold text-gray-900 mb-1">
+                  <p className="text-[15px] font-semibold text-[var(--text-primary)] mb-1">
                     What if 2008 happened today?
                   </p>
-                  <p className="text-[13px] text-gray-600 mb-3">
+                  <p className="text-[13px] text-[var(--text-secondary)] mb-3">
                     See your real portfolio dropped through one of the worst
                     years in modern markets.
                   </p>
@@ -1054,10 +1056,10 @@ export function AITab({ data }: { data: PortfolioData }) {
                   <p className="text-[11px] text-blue-700 font-medium uppercase tracking-wide mb-1">
                     Try this
                   </p>
-                  <p className="text-[15px] font-semibold text-gray-900 mb-1">
+                  <p className="text-[15px] font-semibold text-[var(--text-primary)] mb-1">
                     Confused by a term?
                   </p>
-                  <p className="text-[13px] text-gray-600 mb-3">
+                  <p className="text-[13px] text-[var(--text-secondary)] mb-3">
                     {"Type any financial word — fund name, broker email, IRS letter — and I'll explain it in plain English."}
                   </p>
                   <span className="text-blue-600 text-sm font-medium">
@@ -1066,11 +1068,11 @@ export function AITab({ data }: { data: PortfolioData }) {
             </div>
           </div>
 
-          <h2 className="text-lg font-bold mb-4">Your money tools</h2>
+          <h2 className="text-lg font-bold mb-4 text-[var(--text-primary)]">Your money tools</h2>
 
           {toolCards.map((section) => (
             <div key={section.section} className="mb-6">
-                  <h3 className="text-base font-semibold text-gray-900 mb-3">
+                  <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3">
                     {section.section}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1078,7 +1080,7 @@ export function AITab({ data }: { data: PortfolioData }) {
                       <button
                     key={card.title}
                     onClick={card.onClick}
-                        className="bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-md transition cursor-pointer hover:scale-[1.01] relative group text-left"
+                        className="bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-md transition cursor-pointer hover:scale-[1.01] relative group text-left text-[var(--text-primary)]"
                       >
                         <div
                           className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}
@@ -1087,13 +1089,13 @@ export function AITab({ data }: { data: PortfolioData }) {
                             className={`w-5 h-5 ${card.iconColor}`}
                           />
                     </div>
-                        <p className="text-[15px] font-semibold mt-3 mb-1">
+                        <p className="text-[15px] font-semibold mt-3 mb-1 text-[var(--text-primary)]">
                           {card.title}
                         </p>
-                        <p className="text-[13px] text-gray-500 line-clamp-3">
+                        <p className="text-[13px] text-[var(--text-tertiary)] line-clamp-3">
                           {card.description}
                         </p>
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowUpRight className="w-4 h-4 text-[var(--text-tertiary)] absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </button>
                     ))}
                   </div>
@@ -1115,8 +1117,8 @@ export function AITab({ data }: { data: PortfolioData }) {
                   <div
                     className={`max-w-[80%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${
                       m.role === 'user'
-                        ? 'bg-black text-white'
-                        : 'bg-white border border-gray-100 shadow-sm text-gray-900'
+                        ? 'bg-violet-600 text-white shadow-sm [&_p]:text-white'
+                        : 'bg-[var(--bg-card)] border border-[var(--border-primary)] shadow-sm text-[var(--text-primary)]'
                     }`}
                   >
                     {m.tools && m.tools.length > 0 && (
@@ -1137,13 +1139,13 @@ export function AITab({ data }: { data: PortfolioData }) {
                     )}
                     {m.role === 'assistant' ? (
                       m.content ? (
-                        <div className="prose prose-sm max-w-none prose-p:my-2 prose-li:my-0 prose-headings:my-2">
+                        <div className="prose prose-sm max-w-none prose-p:my-2 prose-li:my-0 prose-headings:my-2 [&_p]:text-[var(--text-primary)] [&_li]:text-[var(--text-primary)] [&_strong]:text-[var(--text-primary)] [&_h1]:text-[var(--text-primary)] [&_h2]:text-[var(--text-primary)] [&_h3]:text-[var(--text-primary)] [&_blockquote]:text-[var(--text-secondary)] [&_a]:text-[var(--accent-purple-text)] [&_code]:rounded [&_code]:bg-[var(--bg-tertiary)] [&_code]:px-1 [&_code]:text-[var(--text-primary)]">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {m.content}
                           </ReactMarkdown>
                         </div>
                       ) : (
-                        <span className="inline-flex gap-1 items-center text-gray-400">
+                        <span className="inline-flex gap-1 items-center text-[var(--text-tertiary)]">
                           <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse" />
                           <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse [animation-delay:120ms]" />
                           <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse [animation-delay:240ms]" />
@@ -1156,7 +1158,7 @@ export function AITab({ data }: { data: PortfolioData }) {
             </div>
           ))}
               {!historyLoaded && (
-                <div className="flex items-center justify-center text-gray-400 text-sm">
+                <div className="flex items-center justify-center text-[var(--text-tertiary)] text-sm">
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Loading conversation…
                 </div>
@@ -1166,18 +1168,18 @@ export function AITab({ data }: { data: PortfolioData }) {
         </div>
 
         {/* Input */}
-        <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
+        <div className="sticky bottom-0 bg-[var(--bg-card)] pt-4 border-t border-[var(--border-primary)]">
           {/* Voice live strip — only renders when a voice session is active. */}
           <VoiceErrorBanner />
           <VoiceLiveStrip />
 
-          <div className="bg-gray-50 rounded-2xl p-3 flex items-center gap-2">
+          <div className="bg-[var(--bg-secondary)] rounded-2xl p-3 flex items-center gap-2 border border-[var(--border-primary)]">
             <button
               onClick={startNewChat}
               className="w-8 h-8 rounded-full bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center shrink-0"
               title="New chat"
             >
-              <Plus className="w-4 h-4 text-gray-500" />
+              <Plus className="w-4 h-4 text-[var(--text-secondary)]" />
             </button>
             <input
               type="text"
@@ -1188,7 +1190,7 @@ export function AITab({ data }: { data: PortfolioData }) {
               }}
               disabled={busy}
               placeholder="Ask anything about your money. The advisor sees your real holdings and goals."
-              className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-gray-400 disabled:opacity-50"
+              className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] disabled:opacity-50"
             />
             {/* Mic — ChatGPT/Claude style. Click to start/stop voice chat. */}
             <VoiceComposerButton disabled={busy} />
@@ -1215,7 +1217,7 @@ export function AITab({ data }: { data: PortfolioData }) {
                 key={chip}
                 onClick={() => void send(chip)}
                 disabled={busy}
-                className="px-3 py-1 rounded-full border border-gray-200 text-[12px] text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="px-3 py-1 rounded-full border border-[var(--border-primary)] text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] disabled:opacity-50"
               >
                 {chip}
               </button>
@@ -1307,8 +1309,8 @@ function InsightsPanel({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-1">My insights</h1>
-        <p className="text-gray-500 text-sm">
+        <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">My insights</h1>
+        <p className="text-[var(--text-secondary)] text-sm">
           Personalized observations the advisor sees in your portfolio right now.
         </p>
       </div>
@@ -1322,13 +1324,13 @@ function InsightsPanel({
             <div className="flex items-start gap-3">
               <Lightbulb className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="font-semibold text-[15px] mb-1">{ins.title}</p>
-                <p className="text-sm text-gray-700">{ins.body}</p>
+                <p className="font-semibold text-[15px] mb-1 text-[var(--text-primary)]">{ins.title}</p>
+                <p className="text-sm text-[var(--text-secondary)]">{ins.body}</p>
             </div>
             </div>
             <button
               onClick={() => onAsk(ins.cta)}
-              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-indigo-600"
+              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent-purple)]"
             >
               Ask the advisor about this
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1338,9 +1340,9 @@ function InsightsPanel({
           </div>
 
             <div>
-        <h2 className="text-base font-semibold mb-2">Your recent questions</h2>
+        <h2 className="text-base font-semibold mb-2 text-[var(--text-primary)]">Your recent questions</h2>
         {userQs.length === 0 ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--text-secondary)]">
             You haven&apos;t asked anything yet — pick a card above to get started.
           </p>
         ) : (
@@ -1349,10 +1351,10 @@ function InsightsPanel({
               <button
                 key={i}
                 onClick={() => onAsk(q.content)}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-gray-800 transition flex items-center justify-between gap-2"
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-card-hover)] text-sm text-[var(--text-primary)] transition flex items-center justify-between gap-2"
               >
                 <span className="truncate">{q.content}</span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
               </button>
             ))}
               </div>
@@ -1384,19 +1386,19 @@ function SavedScenariosPanel({ onRun }: { onRun: (key: string) => void }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-1">Saved scenarios</h1>
-        <p className="text-gray-500 text-sm">
+        <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">Saved scenarios</h1>
+        <p className="text-[var(--text-secondary)] text-sm">
           Macro stress tests you can re-run any time against your real holdings.
         </p>
                 </div>
 
       {loading ? (
-        <div className="flex items-center text-gray-400 text-sm">
+        <div className="flex items-center text-[var(--text-tertiary)] text-sm">
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           Loading scenarios…
               </div>
       ) : scenarios.length === 0 ? (
-        <p className="text-sm text-gray-500">No scenarios available.</p>
+        <p className="text-sm text-[var(--text-secondary)]">No scenarios available.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {scenarios.map((s) => (
@@ -1409,11 +1411,11 @@ function SavedScenariosPanel({ onRun }: { onRun: (key: string) => void }) {
                 <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
                   <History className="w-5 h-5 text-indigo-600" />
                 </div>
-                <p className="font-semibold text-[15px]">{s.name}</p>
+                <p className="font-semibold text-[15px] text-[var(--text-primary)]">{s.name}</p>
               </div>
-              <p className="text-sm text-gray-600 mb-3">{s.description}</p>
+              <p className="text-sm text-[var(--text-secondary)] mb-3">{s.description}</p>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-[var(--text-tertiary)]">
                   {s.duration_months} months
                 </span>
                 <span className="text-sm font-medium text-indigo-600 group-hover:translate-x-0.5 transition">
@@ -1467,8 +1469,8 @@ function StartersPanel({ onPick }: { onPick: (q: string) => void }) {
   return (
     <div className="space-y-6">
             <div>
-        <h1 className="text-2xl font-bold mb-1">Conversation starters</h1>
-        <p className="text-gray-500 text-sm">
+        <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">Conversation starters</h1>
+        <p className="text-[var(--text-secondary)] text-sm">
           Curated questions to get the most out of your AI advisor. Click one to
           start the conversation.
         </p>
@@ -1476,7 +1478,7 @@ function StartersPanel({ onPick }: { onPick: (q: string) => void }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {groups.map((g) => (
           <div key={g.title} className="bg-white border border-gray-100 rounded-2xl p-5">
-            <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--text-tertiary)] font-semibold mb-3">
               {g.title}
             </p>
             <div className="space-y-1">
@@ -1484,10 +1486,10 @@ function StartersPanel({ onPick }: { onPick: (q: string) => void }) {
                 <button
                   key={q}
                   onClick={() => onPick(q)}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm transition flex items-center justify-between gap-2 group"
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-card-hover)] text-sm text-[var(--text-primary)] transition flex items-center justify-between gap-2 group"
                 >
                   <span>{q}</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-600 shrink-0" />
+                  <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-indigo-600 shrink-0" />
                 </button>
               ))}
           </div>
@@ -1543,7 +1545,7 @@ function ConversationList({
   if (total === 0) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <div className="text-center py-6 text-[12px] text-gray-400">
+        <div className="text-center py-6 text-[12px] text-[var(--text-tertiary)]">
           <MessageSquare className="w-5 h-5 mx-auto mb-1.5 opacity-50" />
           No chats yet — your conversations will appear here.
               </div>
@@ -1562,7 +1564,7 @@ function ConversationList({
     <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-3">
       {sections.map((section) => (
         <div key={section.label}>
-          <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1 px-2">
+          <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold mb-1 px-2">
             {section.label}
           </p>
           <div className="space-y-0.5">
@@ -1584,7 +1586,9 @@ function ConversationList({
                   >
                     <span
                       className={
-                        active ? 'text-gray-900 font-medium' : 'text-gray-700'
+                        active
+                          ? 'text-[var(--text-primary)] font-semibold'
+                          : 'text-[var(--text-secondary)]'
                       }
                     >
                       {c.title ?? 'Untitled chat'}
@@ -1602,7 +1606,7 @@ function ConversationList({
                           onDelete(c.id);
                         }
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-rose-600 transition"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-[var(--text-tertiary)] hover:text-rose-600 transition"
                       title="Delete chat"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

@@ -129,7 +129,9 @@ export function TickerPreviewDialog({
 
   const isFund = !!fullResult?.is_mutual_fund;
   const isCash = fullResult?.asset_class === 'cash';
-  const lockedToLine = isFund || isCash;
+  // Only money-market / cash is genuinely locked to line — funds get
+  // a daily-OHLC candle view via MarketChart's daily-nav candle path.
+  const lockedToLine = isCash;
   const color = fullResult ? assetColor(fullResult.asset_class) : '#6366F1';
 
   const getAnchor = (

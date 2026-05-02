@@ -112,15 +112,15 @@ export function fundMetadata(ticker: string): Promise<FundMetadata> {
 
 // --- daily NAV "history" line for charts ------------------------------
 
-/** Generates a 90-day NAV history line for a mutual fund. Since funds
- *  publish only one price per day (NAV), a candlestick view makes no
- *  sense — we render a clean line series that *doesn't tick*.
+/** Generates a 90-day NAV history line for a mutual fund. Funds publish
+ *  one price per day (NAV) so the line *does not tick*.
  *
- *  The walk is deterministic per ticker (so the demo looks consistent
- *  across reloads) and uses asset-class-appropriate volatility:
- *    • Money market → near-flat
- *    • Bonds → tiny daily moves
- *    • Stocks → ~1% daily sigma
+ *  Volatility is picked from the strongest signal available:
+ *    1. Money-market tickers (VMFXX, *XX) → completely flat at $1.00
+ *    2. Cash asset class → completely flat
+ *    3. Explicit category string ("bond", "international", "growth", …)
+ *    4. Asset class hint ("bonds" → low, "intl_stocks" → moderate, etc.)
+ *    5. Default ~1% daily sigma
  *
  *  Uses YYYY-MM-DD time strings for lightweight-charts.
  */
@@ -129,17 +129,38 @@ export function navHistory(
   category: string | null | undefined,
   basePrice: number,
   days = 90,
+  assetClass: string | null | undefined = null,
 ): { time: string; value: number }[] {
   const seed = stringSeed(ticker);
   let rng = seed;
-  const sigma = volatilityForCategory(category);
+
+  // Money market & cash are locked at $1.00 (or basePrice if seeded
+  // differently). They legitimately don't move, and in the previous
+  // code they were getting equity-class volatility because no category
+  // was being passed in — that produced a chart of VMFXX swinging from
+  // $1.00 to $1.25, which is just wrong for a money-market fund.
+  const isMoneyMarket =
+    /^[A-Z]{2,5}XX$/.test(ticker.toUpperCase()) ||
+    assetClass === 'cash' ||
+    /money\s*market/i.test(category || '');
 
   const out: { time: string; value: number }[] = [];
+  const today = new Date();
+  if (isMoneyMarket) {
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      out.push({ time: ymd(d), value: basePrice });
+    }
+    return out;
+  }
+
+  const sigma = volatilityForCategory(category) || volatilityForAssetClass(assetClass);
+
   let v = Math.max(basePrice, 1);
   // Walk backwards from today, then reverse — so today's value matches
   // the input basePrice exactly.
   const reversed: { time: string; value: number }[] = [];
-  const today = new Date();
   for (let i = 0; i < days; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
@@ -151,6 +172,25 @@ export function navHistory(
   }
   for (let i = reversed.length - 1; i >= 0; i--) out.push(reversed[i]);
   return out;
+}
+
+function volatilityForAssetClass(ac: string | null | undefined): number {
+  switch (ac) {
+    case 'cash':
+      return 0;
+    case 'bonds':
+      return 0.003;
+    case 'intl_stocks':
+      return 0.011;
+    case 'us_stocks':
+      return 0.01;
+    case 'real_estate':
+      return 0.012;
+    case 'commodities':
+      return 0.018;
+    default:
+      return 0.01;
+  }
 }
 
 function ymd(d: Date): string {

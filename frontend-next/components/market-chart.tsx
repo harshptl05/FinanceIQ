@@ -95,11 +95,16 @@ export function MarketChart({
 
   // Effective render kind, computed once per render.
   // Precedence:
-  //   1. mode === 'daily-nav' (mutual funds) → always line
-  //   2. assetClass === 'cash' (money-market) → always line, since it's flat
-  //   3. explicit `kind` prop → use it as a per-chart override
-  //   4. otherwise → follow the global ChartModeProvider toggle
-  const isLockedToLine = mode === 'daily-nav' || assetClass === 'cash';
+  //   1. assetClass === 'cash' (money-market) → ALWAYS line, since it's
+  //      legitimately flat at $1.00 — candle bars would be a single tick
+  //      thick and convey no information
+  //   2. otherwise → explicit `kind` prop, else global ChartModeProvider
+  //
+  // Note: regular mutual funds (mode === 'daily-nav' but assetClass != cash)
+  // can render as candle now — we synthesise daily OHLC bars from the
+  // same generator stocks use, just at a 1d resolution and without
+  // ticking. This matches what brokerages do for fund pages.
+  const isLockedToLine = assetClass === 'cash';
   const effectiveKind: MarketChartKind = isLockedToLine
     ? 'line'
     : (kind ?? (globalChartKind === 'candle' ? 'candlestick' : 'line'));
@@ -170,13 +175,44 @@ export function MarketChart({
     }
 
     if (isDailyNav) {
-      // Daily NAV history — 90 calendar days, deterministic walk.
-      const navData = navHistory(ticker, fundCategory ?? null, basePrice, 90);
-      const data: LineData[] = navData.map((d) => ({
-        time: d.time as Time,
-        value: d.value,
-      }));
-      (series as ISeriesApi<'Line'>).setData(data);
+      // Daily NAV history — 90 calendar days, deterministic walk. No
+      // setInterval here: real mutual funds price once per day and the
+      // demo respects that.
+      if (effectiveKind === 'line') {
+        const navData = navHistory(
+          ticker,
+          fundCategory ?? null,
+          basePrice,
+          90,
+          assetClass,
+        );
+        const data: LineData[] = navData.map((d) => ({
+          time: d.time as Time,
+          value: d.value,
+        }));
+        (series as ISeriesApi<'Line'>).setData(data);
+      } else {
+        // Candle view of a mutual fund: synthesise 90 daily OHLC bars
+        // using the same trended generator stocks use, then render. The
+        // last close lands exactly on basePrice and the leftmost open
+        // lines up with our `periodStartPriceFor` formula, so the
+        // headline % matches the chart byte-for-byte.
+        const dailyHistory = generateSyntheticHistory(
+          ticker,
+          basePrice,
+          90,
+          vol,
+          86400,
+        );
+        const data: CandlestickData[] = dailyHistory.map((c) => ({
+          time: c.time as UTCTimestamp,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        }));
+        (series as ISeriesApi<'Candlestick'>).setData(data);
+      }
       chart.timeScale().fitContent();
 
       // Mirror the latest NAV to the live-prices store. Note: live-prices

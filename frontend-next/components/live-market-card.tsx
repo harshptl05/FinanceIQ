@@ -142,25 +142,18 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
     if (currentPrice <= 0) {
       return { periodStart: 0, dollar: 0, pct: 0 };
     }
-    // Funds + cash don't have a synthetic intraday history (they're
-    // rendered as a flat NAV line) — change relative to the holding's
-    // current price is meaningless. Show 0 here; the UI swaps the
-    // caption to "Last NAV — next update 4:00 PM ET".
-    if (
-      isMutualFund(ticker, assetClass ?? null) ||
-      assetClass === 'cash'
-    ) {
+    // Cash / money-market is locked at $1.00 — change is always 0%.
+    if (assetClass === 'cash') {
       return { periodStart: currentPrice, dollar: 0, pct: 0 };
     }
     const anchor = getAnchor(ticker, currentPrice);
     if (anchor <= 0) return { periodStart: 0, dollar: 0, pct: 0 };
-    const cfg = PERIOD_CONFIG[period];
-    const periodStart = periodStartPriceFor(
-      ticker,
-      anchor,
-      cfg.bars,
-      cfg.barSec,
-    );
+    // Mutual funds always show the 90-day trend (matching their daily
+    // OHLC chart). Stocks/ETFs use the active period selector.
+    const isFund = isMutualFund(ticker, assetClass ?? null);
+    const bars = isFund ? 90 : PERIOD_CONFIG[period].bars;
+    const barSec = isFund ? 86400 : PERIOD_CONFIG[period].barSec;
+    const periodStart = periodStartPriceFor(ticker, anchor, bars, barSec);
     if (periodStart <= 0) {
       return { periodStart: 0, dollar: 0, pct: 0 };
     }
@@ -178,12 +171,13 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
 
   const accent = colorMap[active] ?? '#6366F1';
   const isFund = isMutualFund(activeHolding);
-  // Cash + mutual funds are always rendered as a line by MarketChart
-  // itself — they don't have OHLC data. For everything else we let the
-  // global ChartModeProvider toggle decide (so the user can flip every
-  // chart in the app to candle or line at once).
-  const lockedToLine =
-    isFund || activeHolding.asset_class === 'cash';
+  const isCash = activeHolding.asset_class === 'cash';
+  // Only money-market / cash is genuinely locked to line — its NAV
+  // is fixed at $1.00 so candle bars would be 1px tall and convey no
+  // information. Regular mutual funds (VFIAX, FXAIX, FCNTX, etc.) now
+  // support candle view: MarketChart synthesises daily OHLC from the
+  // same trended generator stocks use.
+  const lockedToLine = isCash;
 
   // Stable anchor for the active ticker — also passed to MarketChart as
   // basePrice so the chart only remounts when (ticker, period, kind)
@@ -219,19 +213,14 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
 
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {/* Global candle/line switch — flips every MarketChart in the
-                app at once (the choice persists to localStorage). Funds
-                and money-market force `line` regardless, so we visually
-                disable but keep the control in place so users learn it
-                exists. */}
+                app at once (the choice persists to localStorage). Only
+                cash / money-market is genuinely locked to line; regular
+                mutual funds get a daily-OHLC candle view. */}
             <ChartKindToggle
               kind={chartKind}
               onChange={setChartKind}
               disabled={lockedToLine}
-              disabledHint={
-                isFund
-                  ? 'Mutual funds price daily — line view only'
-                  : 'Cash holds steady at $1.00 — line view only'
-              }
+              disabledHint="Money market funds hold steady at $1.00 — line view only"
             />
 
             {isFund ? (

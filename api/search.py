@@ -1,18 +1,19 @@
 """Global ticker search.
 
-Powers the dashboard's ⌘K command palette. Two cases:
+Powers the dashboard's ⌘K command palette. The flow:
 
-  1. The query already looks like a ticker symbol (≤6 alphanumeric chars,
-     no spaces) — try `yf.Ticker(q)` directly. Fast path, ~150ms.
+  1. Curated local universe — top ~200 US stocks + ETFs + mutual funds.
+     Always hits, no rate limits, ~0.1ms. Handles 95% of real demo
+     queries (META, AAPL, TSLA, NVDA, SPY, VTI, …).
+  2. Direct yfinance ticker lookup if the query looks like a ticker
+     symbol (≤6 alphanumeric chars).
+  3. Yahoo's public keyword search as a last-resort fallback. This
+     endpoint is heavily rate-limited (frequent 429s) so we never rely
+     on it alone.
 
-  2. The query is a free-text keyword like "apple" or "vanguard 500" —
-     fall back to `yfinance.Search(...)` which keyword-matches against
-     Yahoo's universe (covers stocks, ETFs, mutual funds, indices). It's
-     a touch slower but it's how every modern broker app works.
-
-We classify each match into one of our existing asset classes so that
-the rest of the stack (live tick mode vs. NAV mode, charts, P&L) just
-works without any extra plumbing on the frontend.
+We classify every match into one of our existing asset classes so the
+rest of the stack (live tick mode vs. NAV mode, charts, P&L) just works
+without any extra plumbing on the frontend.
 """
 from __future__ import annotations
 
@@ -26,7 +27,15 @@ import yfinance as yf
 from fastapi import APIRouter, Header, HTTPException
 
 from core.logger import get_logger
-from data.fund_data import is_mutual_fund
+from data.curated_tickers import (
+    CURATED_TICKERS,
+    lookup_by_ticker as _curated_ticker_lookup,
+    search_curated as _curated_keyword_search,
+)
+from data.fund_data import (
+    _load_curated as _load_curated_funds,
+    is_mutual_fund,
+)
 
 # Yahoo Finance's public search endpoint. yfinance 0.2.50 doesn't expose
 # this directly, so we hit it ourselves. The User-Agent must look like
@@ -202,6 +211,81 @@ def _keyword_search_sync(q: str, max_results: int = 8) -> list[dict[str, Any]]:
     return results
 
 
+def _curated_stock_to_result(row: tuple[str, str, str, str, str | None]) -> dict[str, Any]:
+    ticker, name, asset_class, quote_type, _sector = row
+    return {
+        "ticker": ticker,
+        "name": name,
+        "current_price": None,  # hydrated on click
+        "asset_class": asset_class,
+        "quote_type": quote_type,
+        "is_mutual_fund": False,
+        "exchange": None,
+    }
+
+
+def _curated_fund_to_result(ticker: str, fund: dict[str, Any]) -> dict[str, Any]:
+    name = fund.get("name") or fund.get("longName") or ticker
+    cat = (fund.get("category") or "").lower()
+    if "money market" in cat or ticker.endswith("XX"):
+        ac = "cash"
+    elif "bond" in cat or "fixed income" in cat:
+        ac = "bonds"
+    elif "international" in cat or "world" in cat or "foreign" in cat:
+        ac = "intl_stocks"
+    else:
+        ac = "us_stocks"
+    return {
+        "ticker": ticker,
+        "name": name,
+        "current_price": fund.get("nav") or fund.get("current_price"),
+        "asset_class": ac,
+        "quote_type": "mutualfund",
+        "is_mutual_fund": True,
+        "exchange": None,
+    }
+
+
+def _curated_fund_search(q: str, limit: int = 6) -> list[dict[str, Any]]:
+    """Substring + ticker search across our curated mutual-fund universe."""
+    funds = _load_curated_funds() or {}
+    if not funds:
+        return []
+    qu = q.upper().strip()
+    ql = q.lower().strip()
+    if not qu:
+        return []
+
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    # Exact ticker first
+    if qu in funds and qu not in seen:
+        seen.add(qu)
+        out.append(_curated_fund_to_result(qu, funds[qu]))
+        if len(out) >= limit:
+            return out
+
+    # Ticker prefix
+    for t, meta in funds.items():
+        if t.startswith(qu) and t not in seen:
+            seen.add(t)
+            out.append(_curated_fund_to_result(t, meta))
+            if len(out) >= limit:
+                return out
+
+    # Name substring
+    for t, meta in funds.items():
+        name = (meta.get("name") or "").lower()
+        if ql in name and t not in seen:
+            seen.add(t)
+            out.append(_curated_fund_to_result(t, meta))
+            if len(out) >= limit:
+                return out
+
+    return out
+
+
 @router.get("")
 async def search(
     q: str,
@@ -214,26 +298,47 @@ async def search(
 
     loop = asyncio.get_event_loop()
     results: list[dict[str, Any]] = []
+    seen: set[str] = set()
 
+    def add(row: dict[str, Any]) -> None:
+        t = row.get("ticker")
+        if not t or t in seen:
+            return
+        seen.add(t)
+        results.append(row)
+
+    # 1) Curated stocks/ETFs — instant, no rate limits, covers META/AAPL/etc.
+    for row in _curated_keyword_search(q, limit=8):
+        add(_curated_stock_to_result(row))
+
+    # 2) Curated mutual funds — same idea, pulled from curated_funds.json.
+    for row in _curated_fund_search(q, limit=4):
+        add(row)
+
+    # 3) Direct ticker lookup via yfinance (only if not already in results
+    #    AND query looks like a ticker).
     looks_like_ticker = bool(_TICKER_RE.match(q.upper()))
-    if looks_like_ticker:
+    if looks_like_ticker and q.upper() not in seen:
         match = await loop.run_in_executor(
             None, partial(_lookup_ticker_sync, q.upper())
         )
         if match:
-            results.append(match)
+            add(match)
 
-    # Always fan out the keyword search too (covers names + cross-listings).
-    keyword = await loop.run_in_executor(None, partial(_keyword_search_sync, q))
-    seen = {r["ticker"] for r in results}
-    for r in keyword:
-        if r["ticker"] in seen:
-            continue
-        results.append(r)
-        seen.add(r["ticker"])
+    # 4) Yahoo keyword search as a last-resort fallback for niche names.
+    #    Routinely 429s — do it last and don't depend on it.
+    if len(results) < 6:
+        try:
+            keyword = await loop.run_in_executor(
+                None, partial(_keyword_search_sync, q)
+            )
+            for r in keyword:
+                add(r)
+        except Exception as exc:  # network / rate limit — non-fatal
+            logger.debug(f"Yahoo keyword fallback failed: {exc}")
 
-    # Hydrate the top result with a live price so the UI can render the
-    # first card without a second round-trip. The rest are price-on-click.
+    # Hydrate the top result with a live price so the UI's headline
+    # card renders without a second round trip. The rest are price-on-click.
     if results and results[0].get("current_price") is None:
         hydrated = await loop.run_in_executor(
             None, partial(_lookup_ticker_sync, results[0]["ticker"])

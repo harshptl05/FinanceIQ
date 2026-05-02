@@ -34,8 +34,11 @@ from data.curated_tickers import (
 )
 from data.fund_data import (
     _load_curated as _load_curated_funds,
+    get_fund_metadata_sync,
     is_mutual_fund,
 )
+from data.curated_tickers import lookup_by_ticker as _curated_stock_lookup
+from data.quote_providers import enrich_info_sync, resolve_prices_sync
 
 # Yahoo Finance's public search endpoint. yfinance 0.2.50 doesn't expose
 # this directly, so we hit it ourselves. The User-Agent must look like
@@ -114,34 +117,50 @@ def _classify_asset_class(quote_type: str, ticker: str, info: dict) -> str:
 
 
 def _lookup_ticker_sync(ticker: str) -> dict[str, Any] | None:
+    """Quote hydration — prices prefer Polygon / Finnhub when configured so
+    Yahoo rate limits don't blank out META / NVDA in search previews."""
     try:
-        t = yf.Ticker(ticker)
-        fast = t.fast_info
-        last_price = fast.get("last_price") if hasattr(fast, "get") else getattr(fast, "last_price", None)
-        if not last_price or last_price <= 0:
+        px_tuple = resolve_prices_sync(ticker)
+        if not px_tuple:
             return None
-        # `.info` is the slower, richer call. Failures here shouldn't
-        # break search — fall back to ticker-as-name.
-        info: dict[str, Any] = {}
-        try:
-            info = t.info or {}
-        except Exception:
-            info = {}
-        name = info.get("longName") or info.get("shortName") or ticker
+        last_price, previous_close, day_change_pct = px_tuple
+
+        info: dict[str, Any] = enrich_info_sync(ticker)
+        name = info.get("longName") or info.get("shortName")
         quote_type = (info.get("quoteType") or "").lower()
-        previous_close = (
-            fast.get("previous_close")
-            if hasattr(fast, "get")
-            else getattr(fast, "previous_close", None)
-        )
-        day_change_pct = (
-            ((last_price - previous_close) / previous_close * 100.0)
-            if previous_close
-            else 0.0
-        )
+
+        # Yahoo `.info` often fails under rate limits — fall back to our
+        # curated universe + fund metadata so rows still look polished.
+        if not name:
+            row = _curated_stock_lookup(ticker)
+            if row:
+                name = row[1]
+                if not quote_type:
+                    quote_type = row[3]
+            if not name:
+                meta = get_fund_metadata_sync(ticker)
+                name = meta.get("name") or ticker
+            if not name:
+                name = ticker
+
+        if not quote_type:
+            quote_type = "mutualfund" if is_mutual_fund(ticker) else "equity"
+
+        fast_exchange = None
+        try:
+            t = yf.Ticker(ticker)
+            fast = t.fast_info
+            fast_exchange = (
+                fast.get("exchange")
+                if hasattr(fast, "get")
+                else getattr(fast, "exchange", None)
+            )
+        except Exception:
+            pass
+
         is_fund = is_mutual_fund(ticker) or quote_type == "mutualfund"
         return {
-            "ticker": ticker,
+            "ticker": ticker.upper(),
             "name": name,
             "current_price": float(last_price),
             "previous_close": float(previous_close) if previous_close else None,
@@ -150,7 +169,7 @@ def _lookup_ticker_sync(ticker: str) -> dict[str, Any] | None:
             "quote_type": quote_type or None,
             "is_mutual_fund": bool(is_fund),
             "currency": info.get("currency") or "USD",
-            "exchange": info.get("exchange") or fast.get("exchange") if hasattr(fast, "get") else info.get("exchange"),
+            "exchange": info.get("exchange") or fast_exchange,
             "sector": info.get("sector"),
         }
     except Exception as e:

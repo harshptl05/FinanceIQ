@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     fred_api_key: str = ""
     news_api_key: str = ""
     polygon_api_key: str = ""
+    finnhub_api_key: str = ""
     demo_user_id: str = ""
 
     # `extra="ignore"` so unrelated keys in .env (e.g. used only by scripts)

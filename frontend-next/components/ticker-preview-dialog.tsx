@@ -386,7 +386,7 @@ export function TickerPreviewDialog({
               <div className="flex items-center justify-center h-[260px] text-sm text-gray-400">
                 {hydrating
                   ? 'Loading price…'
-                  : 'No price available — Yahoo may be rate-limiting.'}
+                  : 'No live quote right now — try again in a moment.'}
               </div>
             )}
           </div>

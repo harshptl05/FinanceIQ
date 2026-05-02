@@ -20,6 +20,7 @@ import {
   type Candle,
 } from '@/lib/market-data';
 import { useLivePrices, useStableSetPrice } from '@/lib/live-prices';
+import { useChartMode } from '@/lib/chart-mode';
 import { navHistory } from '@/lib/funds';
 
 export type MarketChartKind = 'candlestick' | 'line';
@@ -43,7 +44,11 @@ interface Props {
    *  60 = 1m candles, 600 = 10m, 3600 = 1h, 86400 = 1d. The simulated
    *  tick loop also advances by this amount each interval. */
   barSec?: number;
-  /** "candlestick" for stocks, "line" for cash / money-market funds. */
+  /** Per-chart override. If omitted, the chart follows the global
+   *  ChartModeProvider toggle (which is what brokerages do). Mutual
+   *  funds and cash holdings are always rendered as a line, regardless
+   *  of this prop or the global setting, because they don't have an
+   *  OHLC source. */
   kind?: MarketChartKind;
   /** "live" for stocks/ETFs (intraday ticking), "daily-nav" for mutual
    *  funds (90-day NAV history, no ticking, day-resolution x-axis). */
@@ -75,7 +80,7 @@ export function MarketChart({
   intervalMs = 2000,
   historyBars = 180,
   barSec = 60,
-  kind = 'candlestick',
+  kind,
   mode = 'live',
   fundCategory,
   onTick,
@@ -86,6 +91,18 @@ export function MarketChart({
 
   const setLivePrice = useStableSetPrice();
   const { resetBase } = useLivePrices();
+  const globalChartKind = useChartMode().kind;
+
+  // Effective render kind, computed once per render.
+  // Precedence:
+  //   1. mode === 'daily-nav' (mutual funds) → always line
+  //   2. assetClass === 'cash' (money-market) → always line, since it's flat
+  //   3. explicit `kind` prop → use it as a per-chart override
+  //   4. otherwise → follow the global ChartModeProvider toggle
+  const isLockedToLine = mode === 'daily-nav' || assetClass === 'cash';
+  const effectiveKind: MarketChartKind = isLockedToLine
+    ? 'line'
+    : (kind ?? (globalChartKind === 'candle' ? 'candlestick' : 'line'));
 
   useEffect(() => {
     const container = containerRef.current;
@@ -127,10 +144,10 @@ export function MarketChart({
       },
     });
 
-    // For mutual funds we always force a line series — candlesticks would be
-    // misleading since funds don't have intraday OHLC.
-    const effectiveKind: MarketChartKind = isDailyNav ? 'line' : kind;
-
+    // effectiveKind is computed at the top of the component so the effect
+    // can re-run when the global chart-mode toggle flips. Mutual funds and
+    // cash are guaranteed to be 'line' here (the lock-to-line check above
+    // is applied identically).
     let series: ISeriesApi<'Candlestick'> | ISeriesApi<'Line'>;
     if (effectiveKind === 'candlestick') {
       series = chart.addSeries(CandlestickSeries, {
@@ -277,7 +294,7 @@ export function MarketChart({
     intervalMs,
     historyBars,
     barSec,
-    kind,
+    effectiveKind,
     mode,
     fundCategory,
   ]);

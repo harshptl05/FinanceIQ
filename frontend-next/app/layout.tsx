@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { LivePricesProvider } from '@/lib/live-prices';
+import { ChartModeProvider } from '@/lib/chart-mode';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
@@ -34,7 +35,9 @@ export default function RootLayout({
     <html lang="en" className="bg-white">
       <body className="font-sans antialiased bg-white text-gray-900">
         <AuthProvider>
-          <LivePricesProvider>{children}</LivePricesProvider>
+          <LivePricesProvider>
+            <ChartModeProvider>{children}</ChartModeProvider>
+          </LivePricesProvider>
         </AuthProvider>
         <Toaster richColors position="top-right" />
       </body>

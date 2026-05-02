@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  CandlestickChart,
   Clock,
+  LineChart as LineChartIcon,
   Pause,
   Play,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { MarketChart, type MarketChartKind } from '@/components/market-chart';
+import { MarketChart } from '@/components/market-chart';
 import { TickerLogo } from '@/components/ticker-logo';
 import {
   fmtMoney,
@@ -18,6 +20,7 @@ import {
   relativeTime,
 } from '@/lib/format';
 import { useLivePrices } from '@/lib/live-prices';
+import { useChartMode } from '@/lib/chart-mode';
 import { isMutualFund } from '@/lib/funds';
 import type { Holding } from '@/lib/api';
 
@@ -89,6 +92,7 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
   const { prices, basePrices, isLive, setIsLive, lastTickAt } =
     useLivePrices();
+  const { kind: chartKind, setKind: setChartKind } = useChartMode();
 
   const activeHolding = eligible.find((h) => h.ticker === active);
 
@@ -109,10 +113,12 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
 
   const accent = colorMap[active] ?? '#6366F1';
   const isFund = isMutualFund(activeHolding);
-  const kind: MarketChartKind =
-    activeHolding.asset_class === 'cash' || isFund
-      ? 'line'
-      : 'candlestick';
+  // Cash + mutual funds are always rendered as a line by MarketChart
+  // itself — they don't have OHLC data. For everything else we let the
+  // global ChartModeProvider toggle decide (so the user can flip every
+  // chart in the app to candle or line at once).
+  const lockedToLine =
+    isFund || activeHolding.asset_class === 'cash';
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
@@ -135,7 +141,23 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Global candle/line switch — flips every MarketChart in the
+                app at once (the choice persists to localStorage). Funds
+                and money-market force `line` regardless, so we visually
+                disable but keep the control in place so users learn it
+                exists. */}
+            <ChartKindToggle
+              kind={chartKind}
+              onChange={setChartKind}
+              disabled={lockedToLine}
+              disabledHint={
+                isFund
+                  ? 'Mutual funds price daily — line view only'
+                  : 'Cash holds steady at $1.00 — line view only'
+              }
+            />
+
             {isFund ? (
               <span className="text-[11px] flex items-center gap-1.5 text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full font-medium">
                 <Clock className="w-3 h-3" />
@@ -332,13 +354,16 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
             mean-reverts to the current quote, keeping period transitions
             visually continuous. resetBase(ticker) inside MarketChart then
             re-anchors "since open" to the next live tick. */}
+        {/* The chart's render kind comes from the global ChartModeProvider
+            unless it's a mutual fund / cash holding (forced line by the
+            chart itself). Period changes still fully remount via the key
+            so the seeded history regenerates at the new resolution. */}
         <MarketChart
-          key={`${active}-${isFund ? 'nav' : 'live'}-${period}`}
+          key={`${active}-${isFund ? 'nav' : 'live'}-${period}-${chartKind}`}
           ticker={active}
           basePrice={isFund ? basePrice : livePrice}
           assetClass={activeHolding.asset_class}
           color={accent}
-          kind={kind}
           mode={isFund ? 'daily-nav' : 'live'}
           height={300}
           intervalMs={2000}
@@ -352,6 +377,70 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
             : 'Movement is simulated from a random walk seeded by the ticker so the demo runs 24/7. Your live P&L on this page updates from these ticks too.'}
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Two-button pill toggle for the global chart-style preference.
+ *
+ * Brokerages render this kind of control inline above the chart, paired
+ * with the period selector. Visible always — even when locked to line —
+ * so users learn the toggle exists. When `disabled`, the buttons render
+ * inert with a tooltip explaining why.
+ */
+function ChartKindToggle({
+  kind,
+  onChange,
+  disabled,
+  disabledHint,
+}: {
+  kind: 'candle' | 'line';
+  onChange: (k: 'candle' | 'line') => void;
+  disabled?: boolean;
+  disabledHint?: string;
+}) {
+  const baseTitle = disabled
+    ? disabledHint ?? 'Chart style is locked for this asset'
+    : 'Chart style — applies to every chart in the app';
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Chart style"
+      title={baseTitle}
+      className={`inline-flex items-center gap-0.5 rounded-full p-0.5 border transition ${
+        disabled
+          ? 'bg-gray-50 border-gray-100 opacity-60'
+          : 'bg-gray-100 border-transparent'
+      }`}
+    >
+      {(
+        [
+          { id: 'candle', icon: CandlestickChart, label: 'Candle' },
+          { id: 'line', icon: LineChartIcon, label: 'Line' },
+        ] as const
+      ).map(({ id, icon: Icon, label }) => {
+        const isOn = kind === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={isOn}
+            disabled={disabled}
+            onClick={() => onChange(id)}
+            className={`flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full transition ${
+              isOn
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <Icon className="w-3 h-3" />
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

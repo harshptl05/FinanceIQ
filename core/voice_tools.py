@@ -19,6 +19,8 @@ from datetime import date, datetime, timezone
 from typing import Any, Awaitable, Callable
 
 from core.database import get_db
+from data.fund_data import get_fund_metadata_sync, is_mutual_fund
+from data.market_data import get_price
 from financial.glide_path import get_target_allocation
 from financial.rebalance_apply import build_strategy_rationale, plan_rebalance_updates
 from financial.rebalancing_math import (
@@ -26,7 +28,13 @@ from financial.rebalancing_math import (
     generate_recommendation,
 )
 from financial.scenario_data import SCENARIOS, run_scenario
-from data.market_data import get_price
+
+
+# Tabs the voice agent can navigate to. Must match the tab IDs in app/page.tsx.
+NAVIGABLE_TABS = {"dashboard", "investment", "rebalance", "activity", "goals", "ai"}
+
+VALID_RISK_TOLERANCE = {"conservative", "moderate", "aggressive"}
+VALID_RISK_CAPACITY = {"low", "medium", "high"}
 
 
 # ---------------------------------------------------------------------------
@@ -407,6 +415,299 @@ async def tool_mark_alerts_read(user_id: str, args: dict[str, Any]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Trade tools — buy / sell / sync (mirrors api/holdings.py:trade)
+# ---------------------------------------------------------------------------
+
+
+async def tool_buy_holding(user_id: str, args: dict[str, Any]) -> dict:
+    return await _trade(user_id, args or {}, action="buy")
+
+
+async def tool_sell_holding(user_id: str, args: dict[str, Any]) -> dict:
+    return await _trade(user_id, args or {}, action="sell")
+
+
+async def _trade(user_id: str, args: dict[str, Any], *, action: str) -> dict:
+    """Server-side mirror of api/holdings.py:trade — keeps the voice agent
+    and the click-driven UI in lockstep so trades behave identically."""
+    db = get_db()
+    ticker = (args.get("ticker") or "").upper().strip()
+    if not ticker:
+        return {"error": "Please tell me which ticker to trade."}
+
+    shares_in = args.get("shares")
+    dollars_in = args.get("amount_dollars") or args.get("dollars")
+
+    existing = (
+        db.table("holdings")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("ticker", ticker)
+        .execute()
+    )
+    holding = (existing.data or [None])[0]
+
+    try:
+        price = float((await get_price(ticker)) or 0)
+    except Exception:
+        price = 0.0
+    if price <= 0 and holding:
+        price = float(holding.get("current_price") or 0)
+    if price <= 0:
+        return {
+            "error": (
+                f"I couldn't get a current price for {ticker}. "
+                "Yahoo may be rate-limiting — try again in a minute."
+            )
+        }
+
+    if shares_in is None and dollars_in is None:
+        return {
+            "error": (
+                "I need either a number of shares or a dollar amount to trade."
+            )
+        }
+    shares = float(shares_in) if shares_in is not None else float(dollars_in) / price
+    if shares <= 0:
+        return {"error": "Trade size must be greater than zero."}
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if action == "buy":
+        if holding:
+            old_shares = float(holding.get("shares") or 0)
+            old_cost = float(holding.get("avg_cost_basis") or 0)
+            new_shares = old_shares + shares
+            new_cost = (
+                ((old_shares * old_cost) + (shares * price)) / new_shares
+                if new_shares > 0
+                else price
+            )
+            db.table("holdings").update(
+                {
+                    "shares": new_shares,
+                    "avg_cost_basis": new_cost,
+                    "current_price": price,
+                    "current_value": round(new_shares * price, 2),
+                    "last_updated": now_iso,
+                }
+            ).eq("id", holding["id"]).eq("user_id", user_id).execute()
+            return {
+                "status": "bought",
+                "ticker": ticker,
+                "shares": round(shares, 6),
+                "price": round(price, 4),
+                "total_cost": round(shares * price, 2),
+                "new_position_shares": round(new_shares, 6),
+                "new_position_value": round(new_shares * price, 2),
+            }
+        # Brand-new position
+        asset_class = args.get("asset_class") or "us_stocks"
+        payload: dict[str, Any] = {
+            "user_id": user_id,
+            "ticker": ticker,
+            "name": args.get("name") or ticker,
+            "asset_class": asset_class,
+            "shares": shares,
+            "avg_cost_basis": price,
+            "current_price": price,
+            "current_value": round(shares * price, 2),
+            "last_updated": now_iso,
+        }
+        try:
+            if is_mutual_fund(ticker, asset_class):
+                meta = get_fund_metadata_sync(ticker)
+                payload["is_mutual_fund"] = True
+                if meta.get("expense_ratio") is not None:
+                    payload["expense_ratio"] = meta["expense_ratio"]
+        except Exception:
+            pass
+        try:
+            db.table("holdings").insert(payload).execute()
+        except Exception:
+            for k in ("is_mutual_fund", "expense_ratio", "nav_date"):
+                payload.pop(k, None)
+            db.table("holdings").insert(payload).execute()
+        return {
+            "status": "bought",
+            "ticker": ticker,
+            "shares": round(shares, 6),
+            "price": round(price, 4),
+            "total_cost": round(shares * price, 2),
+            "new_position_shares": round(shares, 6),
+            "new_position_value": round(shares * price, 2),
+        }
+
+    # ---- sell ----
+    if not holding:
+        return {"error": f"You don't own any {ticker} right now."}
+    old_shares = float(holding.get("shares") or 0)
+    if shares > old_shares + 1e-6:
+        return {
+            "error": f"You only own {old_shares:g} shares of {ticker} — can't sell {shares:g}."
+        }
+    new_shares = max(0.0, old_shares - shares)
+    if new_shares < 1e-6:
+        db.table("holdings").delete().eq("id", holding["id"]).eq(
+            "user_id", user_id
+        ).execute()
+        return {
+            "status": "sold",
+            "ticker": ticker,
+            "shares": round(shares, 6),
+            "price": round(price, 4),
+            "proceeds": round(shares * price, 2),
+            "position_closed": True,
+        }
+    db.table("holdings").update(
+        {
+            "shares": new_shares,
+            "current_price": price,
+            "current_value": round(new_shares * price, 2),
+            "last_updated": now_iso,
+        }
+    ).eq("id", holding["id"]).eq("user_id", user_id).execute()
+    return {
+        "status": "sold",
+        "ticker": ticker,
+        "shares": round(shares, 6),
+        "price": round(price, 4),
+        "proceeds": round(shares * price, 2),
+        "remaining_shares": round(new_shares, 6),
+    }
+
+
+async def tool_sync_prices(user_id: str, args: dict[str, Any]) -> dict:
+    """Pull live prices for every holding the user owns."""
+    from agents.portfolio_sync import sync_user_holdings
+
+    try:
+        await sync_user_holdings(user_id)
+    except Exception as e:
+        return {"error": f"Sync failed: {e}"}
+    db = get_db()
+    holdings = (
+        db.table("holdings").select("current_value").eq("user_id", user_id).execute().data
+        or []
+    )
+    total = sum(float(h.get("current_value") or 0) for h in holdings)
+    return {"status": "synced", "new_total_value": round(total, 2)}
+
+
+async def tool_refresh_news(user_id: str, args: dict[str, Any]) -> dict:
+    """Trigger one news ingestion + classification pass for this user."""
+    try:
+        from agents import news_ingestion as news_agent
+
+        result = await news_agent.fetch_and_process_once(background_classify=False)
+    except Exception as e:
+        return {"error": f"News refresh failed: {e}"}
+    return {
+        "status": "refreshed",
+        "new_events": (result or {}).get("new_events", 0),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Profile + UI tools
+# ---------------------------------------------------------------------------
+
+
+async def tool_update_profile(user_id: str, args: dict[str, Any]) -> dict:
+    db = get_db()
+    payload: dict[str, Any] = {}
+    if (args or {}).get("full_name"):
+        payload["full_name"] = str(args["full_name"]).strip()
+    if (args or {}).get("risk_tolerance"):
+        rt = str(args["risk_tolerance"]).lower().strip()
+        if rt not in VALID_RISK_TOLERANCE:
+            return {
+                "error": f"risk_tolerance must be one of {sorted(VALID_RISK_TOLERANCE)}"
+            }
+        payload["risk_tolerance"] = rt
+    if (args or {}).get("risk_capacity"):
+        rc = str(args["risk_capacity"]).lower().strip()
+        if rc not in VALID_RISK_CAPACITY:
+            return {
+                "error": f"risk_capacity must be one of {sorted(VALID_RISK_CAPACITY)}"
+            }
+        payload["risk_capacity"] = rc
+    if not payload:
+        return {"error": "Nothing to update — give me a name, risk tolerance, or risk capacity."}
+
+    payload["id"] = user_id
+    db.table("user_profiles").upsert(payload, on_conflict="id").execute()
+    return {"status": "updated", "fields": list(payload.keys() - {"id"})}
+
+
+async def tool_navigate_ui(user_id: str, args: dict[str, Any]) -> dict:
+    """Tell the browser to switch tabs / open a panel.
+
+    The result is consumed by the frontend's onAction callback — the agent
+    never has to "wait" on the navigation, it just announces "Showing the
+    rebalance tab" and the UI updates instantly.
+    """
+    target = ((args or {}).get("tab") or "").lower().strip()
+    if target not in NAVIGABLE_TABS:
+        return {
+            "error": f"Unknown tab. Choose one of: {', '.join(sorted(NAVIGABLE_TABS))}",
+        }
+    return {"status": "navigated", "tab": target}
+
+
+async def tool_open_settings(user_id: str, args: dict[str, Any]) -> dict:
+    return {"status": "opened", "panel": "settings"}
+
+
+async def tool_set_theme(user_id: str, args: dict[str, Any]) -> dict:
+    """Switch between light, dark, or system theme."""
+    theme = ((args or {}).get("theme") or "").lower().strip()
+    if theme not in {"light", "dark", "system"}:
+        return {"error": "theme must be 'light', 'dark', or 'system'."}
+    return {"status": "theme_set", "theme": theme}
+
+
+async def tool_delete_holding(user_id: str, args: dict[str, Any]) -> dict:
+    """Wipe a position entirely — equivalent to selling all shares."""
+    ticker = ((args or {}).get("ticker") or "").upper().strip()
+    if not ticker:
+        return {"error": "Please tell me which ticker to remove."}
+    db = get_db()
+    existing = (
+        db.table("holdings")
+        .select("id, shares, current_value")
+        .eq("user_id", user_id)
+        .eq("ticker", ticker)
+        .execute()
+    )
+    rows = existing.data or []
+    if not rows:
+        return {"error": f"You don't own {ticker}."}
+    for r in rows:
+        db.table("holdings").delete().eq("id", r["id"]).eq("user_id", user_id).execute()
+    return {
+        "status": "deleted",
+        "ticker": ticker,
+        "freed_value": round(
+            sum(float(r.get("current_value") or 0) for r in rows), 2
+        ),
+    }
+
+
+async def tool_delete_goal(user_id: str, args: dict[str, Any]) -> dict:
+    name = ((args or {}).get("goal_name") or "").lower().strip()
+    if not name:
+        return {"error": "Please name the goal you want to delete."}
+    db = get_db()
+    goals = db.table("goals").select("*").eq("user_id", user_id).execute().data or []
+    goal = _match_goal(goals, name)
+    if not goal:
+        return {"error": f"No goal called '{name}' was found."}
+    db.table("goals").delete().eq("id", goal["id"]).eq("user_id", user_id).execute()
+    return {"status": "deleted", "goal_name": goal.get("goal_name")}
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -565,6 +866,134 @@ TOOL_REGISTRY: dict[
         tool_mark_alerts_read,
         {"type": "object", "properties": {}, "required": []},
     ),
+    "buy_holding": (
+        "Buying for you",
+        tool_buy_holding,
+        {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "shares": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Number of shares to buy. Mutually exclusive with amount_dollars.",
+                },
+                "amount_dollars": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Dollar amount to buy. We'll convert to shares at the current price.",
+                },
+                "asset_class": {
+                    "type": "string",
+                    "enum": [
+                        "us_stocks",
+                        "intl_stocks",
+                        "bonds",
+                        "cash",
+                        "real_estate",
+                        "commodities",
+                        "other",
+                    ],
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Optional friendly name for new positions.",
+                },
+            },
+            "required": ["ticker"],
+        },
+    ),
+    "sell_holding": (
+        "Selling for you",
+        tool_sell_holding,
+        {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "shares": {"type": "number", "minimum": 0},
+                "amount_dollars": {"type": "number", "minimum": 0},
+            },
+            "required": ["ticker"],
+        },
+    ),
+    "delete_holding": (
+        "Removing the position",
+        tool_delete_holding,
+        {
+            "type": "object",
+            "properties": {"ticker": {"type": "string"}},
+            "required": ["ticker"],
+        },
+    ),
+    "delete_goal": (
+        "Deleting the goal",
+        tool_delete_goal,
+        {
+            "type": "object",
+            "properties": {"goal_name": {"type": "string"}},
+            "required": ["goal_name"],
+        },
+    ),
+    "sync_prices": (
+        "Pulling live prices",
+        tool_sync_prices,
+        {"type": "object", "properties": {}, "required": []},
+    ),
+    "refresh_news": (
+        "Pulling latest news",
+        tool_refresh_news,
+        {"type": "object", "properties": {}, "required": []},
+    ),
+    "update_profile": (
+        "Updating your profile",
+        tool_update_profile,
+        {
+            "type": "object",
+            "properties": {
+                "full_name": {"type": "string"},
+                "risk_tolerance": {
+                    "type": "string",
+                    "enum": list(VALID_RISK_TOLERANCE),
+                },
+                "risk_capacity": {
+                    "type": "string",
+                    "enum": list(VALID_RISK_CAPACITY),
+                },
+            },
+            "required": [],
+        },
+    ),
+    "navigate_ui": (
+        "Switching tabs",
+        tool_navigate_ui,
+        {
+            "type": "object",
+            "properties": {
+                "tab": {
+                    "type": "string",
+                    "enum": sorted(NAVIGABLE_TABS),
+                    "description": "Which tab to switch to.",
+                }
+            },
+            "required": ["tab"],
+        },
+    ),
+    "open_settings": (
+        "Opening settings",
+        tool_open_settings,
+        {"type": "object", "properties": {}, "required": []},
+    ),
+    "set_theme": (
+        "Changing the theme",
+        tool_set_theme,
+        {
+            "type": "object",
+            "properties": {
+                "theme": {"type": "string", "enum": ["light", "dark", "system"]}
+            },
+            "required": ["theme"],
+        },
+    ),
 }
 
 
@@ -619,6 +1048,46 @@ def deepgram_function_specs() -> list[dict]:
         "mark_alerts_read": (
             "Mark all unread alerts as read. Use when the user says 'clear my "
             "alerts' or similar."
+        ),
+        "buy_holding": (
+            "BUY a security on the user's behalf. Provide either a share count "
+            "OR a dollar amount, not both. Always confirm verbally before "
+            "calling: 'Want me to buy 5 shares of VTI?' then call only on yes."
+        ),
+        "sell_holding": (
+            "SELL part or all of an existing position. Provide either shares "
+            "or dollars. Confirm verbally first."
+        ),
+        "delete_holding": (
+            "Remove a position entirely (sells all shares). Use only with "
+            "explicit user consent."
+        ),
+        "delete_goal": "Delete a financial goal by name. Confirm first.",
+        "sync_prices": (
+            "Pull fresh live prices from the market for all of the user's "
+            "holdings. Use when they say 'sync prices' or 'refresh values'."
+        ),
+        "refresh_news": (
+            "Trigger a fresh news ingestion + classification pass. Use when "
+            "they ask 'what's new' or 'pull news'."
+        ),
+        "update_profile": (
+            "Update the user's profile fields (name, risk tolerance, risk "
+            "capacity). Use when they say 'change my name to X' or 'set my "
+            "risk tolerance to aggressive'."
+        ),
+        "navigate_ui": (
+            "Switch the dashboard to a different tab. Use when the user says "
+            "'show me my goals', 'go to rebalance', 'open the activity feed', "
+            "etc."
+        ),
+        "open_settings": (
+            "Open the settings dialog. Use when the user says 'open settings' "
+            "or 'I want to change something'."
+        ),
+        "set_theme": (
+            "Switch between light, dark, or system theme. Use when the user "
+            "says 'turn on dark mode', 'switch to light', etc."
         ),
     }
     out = []

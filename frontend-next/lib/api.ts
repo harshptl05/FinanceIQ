@@ -432,6 +432,22 @@ export const api = {
         classification: Record<string, unknown>;
       }>('/news/status'),
   },
+  user: {
+    profile: () =>
+      get<{
+        id: string;
+        email: string | null;
+        full_name: string | null;
+        risk_tolerance: string | null;
+        risk_capacity: string | null;
+        created_at?: string | null;
+      }>('/user/profile'),
+    updateProfile: (body: {
+      full_name?: string;
+      risk_tolerance?: 'conservative' | 'moderate' | 'aggressive';
+      risk_capacity?: 'low' | 'medium' | 'high';
+    }) => put<unknown>('/user/profile', body),
+  },
   health: () => fetch('/health').then((r) => r.json()),
 };
 

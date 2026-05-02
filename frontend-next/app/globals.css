@@ -124,6 +124,190 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Dark mode color overlay
+ *
+ * Most components in this app were written before dark mode existed and
+ * hardcode `bg-white`, `text-gray-900`, `border-gray-100` etc. Rather than
+ * sprinkling `dark:` variants across hundreds of files, we retarget the most
+ * common hardcoded classes here when `<html class="dark">` is set.
+ *
+ * Design philosophy stays identical — same layout, same accents, same
+ * gradients — only the neutral palette flips. Branded gradients
+ * (indigo→purple, etc) intentionally stay vibrant in dark mode.
+ *
+ * Use real `dark:` variants for anything that needs more nuance than this
+ * blanket overlay can give.
+ * ------------------------------------------------------------------------- */
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+
+  /* Page chrome */
+  .dark body,
+  .dark html {
+    background-color: oklch(0.16 0 0);
+    color: oklch(0.96 0 0);
+  }
+  .dark .min-h-screen.bg-white,
+  .dark main,
+  .dark .bg-white\/85 {
+    background-color: oklch(0.16 0 0);
+  }
+
+  /* Cards / surfaces */
+  .dark .bg-white {
+    background-color: oklch(0.21 0 0);
+    color: oklch(0.96 0 0);
+  }
+  .dark .bg-white\/80,
+  .dark .bg-white\/85,
+  .dark .bg-white\/60 {
+    background-color: oklch(0.21 0 0 / 0.85);
+  }
+  .dark .bg-gray-50 {
+    background-color: oklch(0.24 0 0);
+  }
+  .dark .bg-gray-100 {
+    background-color: oklch(0.27 0 0);
+  }
+  .dark .bg-gray-200 {
+    background-color: oklch(0.30 0 0);
+  }
+  .dark .bg-gray-900 {
+    background-color: oklch(0.28 0 0);
+  }
+  .dark .bg-black {
+    background-color: oklch(0.30 0 0);
+  }
+
+  /* Borders — keep them subtle but visible */
+  .dark .border-gray-100 {
+    border-color: oklch(0.30 0 0);
+  }
+  .dark .border-gray-200 {
+    border-color: oklch(0.32 0 0);
+  }
+  .dark .border-gray-200\/80 {
+    border-color: oklch(0.32 0 0 / 0.8);
+  }
+  .dark .border-gray-300 {
+    border-color: oklch(0.36 0 0);
+  }
+  .dark .divide-gray-100 > * + * {
+    border-color: oklch(0.30 0 0);
+  }
+
+  /* Text — readable but not overwhelming */
+  .dark .text-gray-900 {
+    color: oklch(0.96 0 0);
+  }
+  .dark .text-gray-800 {
+    color: oklch(0.93 0 0);
+  }
+  .dark .text-gray-700 {
+    color: oklch(0.85 0 0);
+  }
+  .dark .text-gray-600 {
+    color: oklch(0.75 0 0);
+  }
+  .dark .text-gray-500 {
+    color: oklch(0.65 0 0);
+  }
+  .dark .text-gray-400 {
+    color: oklch(0.58 0 0);
+  }
+  .dark .text-black {
+    color: oklch(0.96 0 0);
+  }
+
+  /* Hovers — keep contrast */
+  .dark .hover\:bg-gray-50:hover {
+    background-color: oklch(0.27 0 0);
+  }
+  .dark .hover\:bg-gray-100:hover {
+    background-color: oklch(0.30 0 0);
+  }
+  .dark .hover\:bg-gray-200:hover {
+    background-color: oklch(0.34 0 0);
+  }
+
+  /* Pill-style nav (active item is bg-black; inactive uses bg-gray-100) */
+  .dark nav.bg-gray-100 {
+    background-color: oklch(0.24 0 0);
+  }
+  .dark nav button.bg-black {
+    background-color: oklch(0.96 0 0);
+    color: oklch(0.18 0 0);
+  }
+
+  /* Inputs */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color-scheme: dark;
+  }
+  .dark .bg-transparent {
+    color: oklch(0.96 0 0);
+  }
+
+  /* Soft tinted alerts (amber/rose/emerald) — keep their hue but darken */
+  .dark .bg-amber-50 {
+    background-color: oklch(0.30 0.07 80);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-rose-50 {
+    background-color: oklch(0.28 0.06 20);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-emerald-50 {
+    background-color: oklch(0.27 0.06 165);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-indigo-50 {
+    background-color: oklch(0.27 0.07 280);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-blue-50 {
+    background-color: oklch(0.27 0.07 240);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-purple-50 {
+    background-color: oklch(0.27 0.07 305);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-green-50 {
+    background-color: oklch(0.27 0.07 150);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-orange-50 {
+    background-color: oklch(0.30 0.08 60);
+    color: oklch(0.93 0 0);
+  }
+  .dark .bg-cyan-50 {
+    background-color: oklch(0.27 0.07 210);
+    color: oklch(0.93 0 0);
+  }
+
+  /* Subtle yellow highlight ("welcome back, X") */
+  .dark .bg-yellow-100 {
+    background-color: oklch(0.36 0.10 95);
+    color: oklch(0.96 0 0);
+  }
+
+  /* Shadows — softer in dark mode */
+  .dark .shadow-sm,
+  .dark .shadow,
+  .dark .shadow-md {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  }
+  .dark .shadow-lg,
+  .dark .shadow-xl {
+    box-shadow: 0 10px 20px -5px rgb(0 0 0 / 0.5);
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

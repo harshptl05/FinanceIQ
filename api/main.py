@@ -13,6 +13,7 @@ from api import (
     funds,
     search,
     voice,
+    user as user_api,
 )
 import agents.news_ingestion as news_agent
 import agents.alert_agent as alert_agent
@@ -43,6 +44,7 @@ app.include_router(news.router, prefix="/api/news", tags=["news"])
 app.include_router(funds.router, prefix="/api/funds", tags=["funds"])
 app.include_router(search.router, prefix="/api/search", tags=["search"])
 app.include_router(voice.router, prefix="/api/voice", tags=["voice"])
+app.include_router(user_api.router, prefix="/api/user", tags=["user"])
 
 
 @app.get("/health")

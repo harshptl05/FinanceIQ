@@ -54,6 +54,13 @@ import type { PortfolioData } from '@/hooks/use-portfolio-data';
 import { fmtMoney, fmtPct, initials } from '@/lib/format';
 import { toast } from 'sonner';
 import { VoiceAgentPanel } from '@/components/voice-agent-panel';
+import {
+  emitNavigate,
+  emitOpenSettings,
+  emitRefresh,
+  type AppNavTab,
+} from '@/lib/app-bridge';
+import { useTheme } from '@/lib/theme-context';
 
 // ---------- TIME MACHINE ----------
 
@@ -462,6 +469,7 @@ type Conversation = {
 
 export function AITab({ data }: { data: PortfolioData }) {
   const { user } = useAuth();
+  const { setPreference: setThemePreference } = useTheme();
   const totalValue = data.summary?.total_value ?? 0;
 
   const [timeMachineOpen, setTimeMachineOpen] = useState(false);
@@ -897,17 +905,84 @@ export function AITab({ data }: { data: PortfolioData }) {
           {panel === 'home' && (
             <VoiceAgentPanel
               className="mb-6"
-              onAction={(tool) => {
-                // The voice agent just mutated the user's portfolio (rebalance,
-                // contribute, create_goal, mark_alerts_read). Refresh the
-                // dashboard data so the change shows up instantly.
+              onAction={(tool, result) => {
+                // The agent finished a tool. Decide whether to refresh data,
+                // dispatch a UI command, or both.
+                const r = (result ?? {}) as {
+                  status?: string;
+                  tab?: string;
+                  theme?: string;
+                  ticker?: string;
+                  goal_name?: string;
+                };
+
+                // Pure UI tools → bridge events, no data refresh needed.
+                if (tool === 'navigate_ui' && r.tab) {
+                  emitNavigate(r.tab as AppNavTab);
+                  toast.message(`Showing the ${r.tab} tab`);
+                  return;
+                }
+                if (tool === 'open_settings') {
+                  emitOpenSettings();
+                  toast.message('Opening settings');
+                  return;
+                }
+                if (tool === 'set_theme' && r.theme) {
+                  setThemePreference(
+                    r.theme as 'light' | 'dark' | 'system',
+                  );
+                  toast.success(`Theme set to ${r.theme}`);
+                  return;
+                }
+
+                // Everything else mutated state → refresh + toast.
+                emitRefresh();
                 void data.refresh();
-                if (tool === 'rebalance_portfolio') {
-                  toast.success('Voice agent rebalanced your portfolio.');
-                } else if (tool === 'contribute_to_goal') {
-                  toast.success('Contribution recorded by voice.');
-                } else if (tool === 'create_goal') {
-                  toast.success('New goal added by voice.');
+
+                switch (tool) {
+                  case 'rebalance_portfolio':
+                    toast.success('Voice agent rebalanced your portfolio.');
+                    break;
+                  case 'buy_holding':
+                    toast.success(
+                      r.ticker
+                        ? `Bought ${r.ticker} via voice.`
+                        : 'Trade recorded by voice.',
+                    );
+                    break;
+                  case 'sell_holding':
+                  case 'delete_holding':
+                    toast.success(
+                      r.ticker
+                        ? `${tool === 'delete_holding' ? 'Closed' : 'Sold'} ${r.ticker} via voice.`
+                        : 'Position updated by voice.',
+                    );
+                    break;
+                  case 'contribute_to_goal':
+                    toast.success('Contribution recorded by voice.');
+                    break;
+                  case 'create_goal':
+                    toast.success('New goal added by voice.');
+                    break;
+                  case 'delete_goal':
+                    toast.success(
+                      r.goal_name
+                        ? `Deleted goal "${r.goal_name}".`
+                        : 'Goal deleted by voice.',
+                    );
+                    break;
+                  case 'sync_prices':
+                    toast.success('Prices synced by voice.');
+                    break;
+                  case 'refresh_news':
+                    toast.success('News refreshed by voice.');
+                    break;
+                  case 'mark_alerts_read':
+                    toast.success('Alerts cleared.');
+                    break;
+                  case 'update_profile':
+                    toast.success('Profile updated by voice.');
+                    break;
                 }
               }}
             />

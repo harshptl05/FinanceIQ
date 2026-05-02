@@ -45,15 +45,31 @@ const INPUT_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 24000;
 
 /**
- * Tools that mutate state. We tell the host page about these so it can
- * refresh the relevant data once the call finishes ("Rebalancing your
- * portfolio…" → instantly updated holdings table).
+ * Tools whose completion the host page wants to react to — either because
+ * they mutated state (rebalance, contribute, buy, sell…) or because they
+ * issued a UI command (navigate_ui, open_settings, set_theme) that the
+ * page needs to translate into actual app behavior.
+ *
+ * The page receives both the tool name and the raw JSON result so it can
+ * route appropriately.
  */
-const MUTATING_TOOLS = new Set([
+const ACTION_TOOLS = new Set([
+  // Mutating
   'rebalance_portfolio',
   'contribute_to_goal',
   'create_goal',
   'mark_alerts_read',
+  'buy_holding',
+  'sell_holding',
+  'delete_holding',
+  'delete_goal',
+  'sync_prices',
+  'refresh_news',
+  'update_profile',
+  // UI commands (no real state change, but the page must act on them)
+  'navigate_ui',
+  'open_settings',
+  'set_theme',
 ]);
 
 function deriveWsUrl(apiBase: string): string {
@@ -287,7 +303,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions = {}) {
             }
             return next;
           });
-          if (MUTATING_TOOLS.has(name)) {
+          if (ACTION_TOOLS.has(name)) {
             try { onActionRef.current?.(name, msg.result); } catch { /* */ }
           }
           break;

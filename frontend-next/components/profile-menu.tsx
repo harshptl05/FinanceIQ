@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { LogOut } from 'lucide-react';
+import { LogOut, Settings as SettingsIcon } from 'lucide-react';
 
 export function ProfileMenu({
   initials,
   email,
+  onOpenSettings,
 }: {
   initials: string;
   email: string;
+  onOpenSettings?: () => void;
 }) {
   const router = useRouter();
   const { signOut } = useAuth();
@@ -42,6 +44,18 @@ export function ProfileMenu({
               {email || 'Investor'}
             </p>
           </div>
+          {onOpenSettings && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenSettings();
+              }}
+              className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <SettingsIcon className="w-4 h-4" />
+              Settings
+            </button>
+          )}
           <button
             onClick={async () => {
               await signOut();

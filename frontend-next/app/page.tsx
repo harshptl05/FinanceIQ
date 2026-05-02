@@ -27,6 +27,15 @@ import { GoalsTab } from '@/components/tabs/goals-tab';
 import { AITab } from '@/components/ai-tab/ai-tab';
 import { ProfileMenu } from '@/components/profile-menu';
 import { GlobalSearch } from '@/components/global-search';
+import { SettingsDialog } from '@/components/settings-dialog';
+import {
+  useNavigateListener,
+  useOpenSettingsListener,
+  useRefreshListener,
+  type AppNavTab,
+} from '@/lib/app-bridge';
+import { useTheme } from '@/lib/theme-context';
+import { Moon, Sun } from 'lucide-react';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -45,10 +54,23 @@ export default function PortfolioDashboard() {
   const data = usePortfolioData();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { resolved: resolvedTheme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     if (!authLoading && !session) router.replace('/login');
   }, [authLoading, session, router]);
+
+  // Voice agent / programmatic nav into a tab.
+  useNavigateListener((tab: AppNavTab) => {
+    setActiveTab(tab as TabId);
+  });
+  // Voice agent: "open settings".
+  useOpenSettingsListener(() => setSettingsOpen(true));
+  // Voice agent: any data-mutating tool finished. Refresh portfolio.
+  useRefreshListener(() => {
+    void data.refresh();
+  });
 
   // Cmd+K / Ctrl+K opens the global search palette anywhere in the app.
   // Plain "/" also opens it as long as the user isn't typing in something.
@@ -72,7 +94,7 @@ export default function PortfolioDashboard() {
 
   if (authLoading || (!session && typeof window !== 'undefined')) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
       </div>
     );
@@ -85,7 +107,7 @@ export default function PortfolioDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-[1400px] mx-auto">
         {/* Top Navigation */}
         <header className="flex items-center justify-between px-6 lg:px-10 py-4 border-b border-gray-100 sticky top-0 bg-white/85 backdrop-blur-md z-30">
@@ -142,12 +164,30 @@ export default function PortfolioDashboard() {
               )}
             </button>
             <button
+              onClick={toggleTheme}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={resolvedTheme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+            >
+              {resolvedTheme === 'dark' ? (
+                <Sun className="w-5 h-5 text-amber-300" />
+              ) : (
+                <Moon className="w-5 h-5 text-gray-600" />
+              )}
+            </button>
+            <button
+              onClick={() => setSettingsOpen(true)}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="Settings"
+              title="Settings"
             >
               <Settings className="w-5 h-5 text-gray-600" />
             </button>
-            <ProfileMenu initials={userInitials} email={user?.email ?? ''} />
+            <ProfileMenu
+              initials={userInitials}
+              email={user?.email ?? ''}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
           </div>
         </header>
 
@@ -177,6 +217,8 @@ export default function PortfolioDashboard() {
           holdings={data.holdings}
           onTraded={() => void data.refresh()}
         />
+
+        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
     </div>
   );

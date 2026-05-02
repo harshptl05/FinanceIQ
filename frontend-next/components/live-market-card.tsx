@@ -223,6 +223,16 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
     computeChange(active, livePrice, activeHolding.asset_class);
   const positive = dollarChange >= 0;
 
+  /** Performance line uses the same type scale + colors as stocks.
+   *  Money-market funds stay indigo + clock (informational); other
+   *  mutual funds use emerald/rose + trending icons like equities so
+   *  the % change doesn't look like a different typeface. */
+  const perfToneClass = isMoneyMarket
+    ? 'text-indigo-700'
+    : positive
+      ? 'text-emerald-600'
+      : 'text-rose-500';
+
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
       {/* Header — ticker selector */}
@@ -386,20 +396,14 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
                 {fmtMoney(livePrice)}
               </p>
               <p
-                className={`text-xs font-semibold flex items-center gap-1 ${
-                  isFund
-                    ? 'text-indigo-700'
-                    : positive
-                      ? 'text-emerald-600'
-                      : 'text-rose-500'
-                }`}
+                className={`text-xs font-semibold flex items-center gap-1 tabular-nums ${perfToneClass}`}
               >
-                {isFund ? (
-                  <Clock className="w-3 h-3" />
+                {isMoneyMarket ? (
+                  <Clock className="w-3 h-3 shrink-0" />
                 ) : positive ? (
-                  <TrendingUp className="w-3 h-3" />
+                  <TrendingUp className="w-3 h-3 shrink-0" />
                 ) : (
-                  <TrendingDown className="w-3 h-3" />
+                  <TrendingDown className="w-3 h-3 shrink-0" />
                 )}
                 {isMoneyMarket ? (
                   <>Held at $1.00 NAV · earns yield through interest</>
@@ -407,8 +411,8 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
                   <>
                     {positive ? '+' : '−'}
                     {fmtMoney(Math.abs(dollarChange))} (
-                    {fmtPct(Math.abs(pctChange), { decimals: 2 })}){' '}
-                    over {fundPeriod}
+                    {fmtPct(Math.abs(pctChange), { decimals: 2 })}) over{' '}
+                    {fundPeriod}
                   </>
                 ) : (
                   <>

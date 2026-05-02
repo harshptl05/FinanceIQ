@@ -18,6 +18,7 @@ import { TickerLogo } from '@/components/ticker-logo';
 import { TickerPreviewDialog } from '@/components/ticker-preview-dialog';
 import { api, type Holding, type SearchResult } from '@/lib/api';
 import { fmtMoney, fmtPct, assetLabel, assetColor } from '@/lib/format';
+import { searchCuratedLocal } from '@/lib/curated-tickers';
 
 type Props = {
   open: boolean;
@@ -82,6 +83,15 @@ export function GlobalSearch({
 
   // Debounced search — last-write-wins via the request id ref so a slow
   // earlier response can't clobber the latest one.
+  //
+  // Two-stage rendering for instant feedback:
+  //   Stage 1: synchronously render results from the local curated
+  //            shortlist (no network). META/AAPL/etc. show up the
+  //            instant the user finishes typing.
+  //   Stage 2: fire the backend search in parallel; merge richer
+  //            results (live prices, niche tickers) on top of the
+  //            local list. If the backend 401s or errors, the user
+  //            still has the local matches in hand.
   useEffect(() => {
     if (!open) return;
     const q = query.trim();
@@ -91,22 +101,53 @@ export function GlobalSearch({
       setLoading(false);
       return;
     }
+
+    // Stage 1 — instant local results from the bundled curated list.
+    const local = searchCuratedLocal(q, 6).map<SearchResult>((row) => ({
+      ticker: row.ticker,
+      name: row.name,
+      asset_class: row.asset_class,
+      quote_type: row.quote_type,
+      is_mutual_fund: row.quote_type === 'mutualfund',
+      current_price: null,
+      previous_close: null,
+      day_change_pct: null,
+      exchange: null,
+    }));
+    setResults(local);
+    setError(null);
+
     const id = ++reqIdRef.current;
     setLoading(true);
-    setError(null);
     const timer = window.setTimeout(async () => {
       try {
         const resp = await api.search.query(q);
         if (reqIdRef.current !== id) return;
-        setResults(resp.results ?? []);
+        const apiRows = resp.results ?? [];
+        // Merge: API rows take priority (they have prices), then any
+        // local rows the API missed (rare — only happens on 5xx etc.).
+        const apiTickers = new Set(apiRows.map((r) => r.ticker.toUpperCase()));
+        const merged = [
+          ...apiRows,
+          ...local.filter((r) => !apiTickers.has(r.ticker.toUpperCase())),
+        ];
+        setResults(merged);
       } catch (e) {
         if (reqIdRef.current !== id) return;
-        setError(e instanceof Error ? e.message : 'Search failed');
-        setResults([]);
+        // Network / 401 / 5xx — keep the local results so the user can
+        // still trade common tickers. Show a soft hint, not a wall.
+        const msg = e instanceof Error ? e.message : 'Search failed';
+        const isAuth =
+          /401|unauthor|missing token|invalid token/i.test(msg);
+        setError(
+          isAuth
+            ? 'Sign in expired — refresh the page to keep searching.'
+            : null, // for other errors, silently fall back to local
+        );
       } finally {
         if (reqIdRef.current === id) setLoading(false);
       }
-    }, 280);
+    }, 220);
     return () => window.clearTimeout(timer);
   }, [query, open]);
 
@@ -150,12 +191,12 @@ export function GlobalSearch({
           {/* Results / states */}
           <div className="max-h-[60vh] overflow-y-auto">
             {error && (
-              <div className="px-4 py-6 text-sm text-rose-600 text-center">
+              <div className="mx-4 mt-3 px-3 py-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg">
                 {error}
               </div>
             )}
 
-            {!error && !loading && query.trim() === '' && (
+            {!loading && query.trim() === '' && (
               <div className="px-4 py-8 text-center text-xs text-gray-400">
                 <p className="text-gray-500 font-medium mb-3">
                   Type a ticker or company name to get started.
@@ -174,10 +215,15 @@ export function GlobalSearch({
               </div>
             )}
 
-            {!error && !loading && query.trim() !== '' && results.length === 0 && (
+            {!loading && query.trim() !== '' && results.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-gray-500">
-                No matches for{' '}
-                <span className="font-semibold">{query}</span>.
+                <p>
+                  No matches for{' '}
+                  <span className="font-semibold">{query}</span>.
+                </p>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Try a ticker symbol like AAPL, NVDA, or VFIAX.
+                </p>
               </div>
             )}
 

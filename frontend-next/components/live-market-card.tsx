@@ -42,6 +42,7 @@ interface Props {
  *  that's an intraday-feel; for longer periods each "day" of fake history
  *  zips by every 2s, which keeps the demo lively across the board. */
 type LivePeriod = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
+type FundPeriod = '1M' | '3M' | '6M' | '1Y' | '5Y';
 
 const PERIOD_CONFIG: Record<LivePeriod, { bars: number; barSec: number }> = {
   '1D': { bars: 180, barSec: 60 },        // 1-min bars, ~3h history
@@ -53,6 +54,29 @@ const PERIOD_CONFIG: Record<LivePeriod, { bars: number; barSec: number }> = {
 };
 
 const PERIOD_KEYS: LivePeriod[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
+
+/** Mutual funds price once per day, so every period shares barSec=86400
+ *  (1 daily bar) and only the lookback length changes. We expose periods
+ *  brokers actually offer for fund pages. */
+const FUND_PERIOD_CONFIG: Record<FundPeriod, { bars: number; barSec: number }> = {
+  '1M': { bars: 21, barSec: 86400 },     // ~1 trading month
+  '3M': { bars: 63, barSec: 86400 },
+  '6M': { bars: 126, barSec: 86400 },
+  '1Y': { bars: 252, barSec: 86400 },
+  '5Y': { bars: 1260, barSec: 86400 },   // ~5 trading years
+};
+
+const FUND_PERIOD_KEYS: FundPeriod[] = ['1M', '3M', '6M', '1Y', '5Y'];
+
+/** Money-market funds (VMFXX, SPAXX, …) sit at a constant $1.00 NAV by
+ *  design — they're cash-equivalent. Detecting them is mostly so we can
+ *  render clearer copy ("Money market — held at $1.00") and disable the
+ *  candle toggle. The pattern catches the SEC-mandated XX suffix used
+ *  by every major US money-market fund. */
+function isMoneyMarketFund(holding: { ticker: string; asset_class?: string | null }): boolean {
+  if (holding.asset_class === 'cash') return true;
+  return /^[A-Z]{3,4}XX$/.test((holding.ticker || '').toUpperCase());
+}
 
 /**
  * Live Market hero card for the Investment tab.
@@ -68,6 +92,7 @@ const PERIOD_KEYS: LivePeriod[] = ['1D', '1W', '1M', '3M', '6M', '1Y'];
  */
 export function LiveMarketCard({ holdings, initialTicker }: Props) {
   const [period, setPeriod] = useState<LivePeriod>('1D');
+  const [fundPeriod, setFundPeriod] = useState<FundPeriod>('3M');
   const eligible = useMemo(
     () =>
       holdings
@@ -148,12 +173,19 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
     }
     const anchor = getAnchor(ticker, currentPrice);
     if (anchor <= 0) return { periodStart: 0, dollar: 0, pct: 0 };
-    // Mutual funds always show the 90-day trend (matching their daily
-    // OHLC chart). Stocks/ETFs use the active period selector.
+    // Mutual funds use the FUND_PERIOD_CONFIG (daily bars at varying
+    // lookback lengths) so the displayed trend window matches what
+    // the chart shows. Stocks / ETFs use the live PERIOD_CONFIG.
     const isFund = isMutualFund(ticker, assetClass ?? null);
-    const bars = isFund ? 90 : PERIOD_CONFIG[period].bars;
-    const barSec = isFund ? 86400 : PERIOD_CONFIG[period].barSec;
-    const periodStart = periodStartPriceFor(ticker, anchor, bars, barSec);
+    const cfg = isFund
+      ? FUND_PERIOD_CONFIG[fundPeriod]
+      : PERIOD_CONFIG[period];
+    const periodStart = periodStartPriceFor(
+      ticker,
+      anchor,
+      cfg.bars,
+      cfg.barSec,
+    );
     if (periodStart <= 0) {
       return { periodStart: 0, dollar: 0, pct: 0 };
     }
@@ -172,6 +204,7 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
   const accent = colorMap[active] ?? '#6366F1';
   const isFund = isMutualFund(activeHolding);
   const isCash = activeHolding.asset_class === 'cash';
+  const isMoneyMarket = isMoneyMarketFund(activeHolding);
   // Only money-market / cash is genuinely locked to line — its NAV
   // is fixed at $1.00 so candle bars would be 1px tall and convey no
   // information. Regular mutual funds (VFIAX, FXAIX, FCNTX, etc.) now
@@ -201,12 +234,18 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
             </div>
             <div>
               <h2 className="font-semibold text-sm leading-tight">
-                {isFund ? 'Daily NAV' : 'Live Market'}
+                {isMoneyMarket
+                  ? 'Money Market'
+                  : isFund
+                    ? 'Daily NAV'
+                    : 'Live Market'}
               </h2>
               <p className="text-[11px] text-gray-500">
-                {isFund
-                  ? 'Mutual funds price once per day at 4:00 PM ET'
-                  : 'Simulated tick every 2s · powers your live P&L'}
+                {isMoneyMarket
+                  ? 'Cash-equivalent fund — held at a steady $1.00 by design'
+                  : isFund
+                    ? 'Mutual funds price once per day at 4:00 PM ET'
+                    : 'Simulated tick every 2s · powers your live P&L'}
               </p>
             </div>
           </div>
@@ -220,13 +259,28 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
               kind={chartKind}
               onChange={setChartKind}
               disabled={lockedToLine}
-              disabledHint="Money market funds hold steady at $1.00 — line view only"
+              disabledHint={
+                isMoneyMarket
+                  ? 'Money market funds hold steady at $1.00 NAV — there are no candles to draw'
+                  : 'Chart style is locked for this asset'
+              }
             />
 
             {isFund ? (
-              <span className="text-[11px] flex items-center gap-1.5 text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full font-medium">
+              <span
+                className={`text-[11px] flex items-center gap-1.5 px-2 py-0.5 rounded-full font-medium border ${
+                  isMoneyMarket
+                    ? 'text-amber-700 bg-amber-50 border-amber-200'
+                    : 'text-indigo-700 bg-indigo-50 border-indigo-100'
+                }`}
+                title={
+                  isMoneyMarket
+                    ? 'Money market funds invest in short-term cash equivalents — they keep their NAV at $1.00 and pay yield through interest, not price appreciation.'
+                    : 'Mutual funds publish a single NAV price per day after the market closes.'
+                }
+              >
                 <Clock className="w-3 h-3" />
-                NAV — daily
+                {isMoneyMarket ? '$1.00 NAV — fixed' : 'NAV — daily'}
               </span>
             ) : (
               <>
@@ -347,8 +401,15 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
                 ) : (
                   <TrendingDown className="w-3 h-3" />
                 )}
-                {isFund ? (
-                  <>Last NAV — next update 4:00 PM ET</>
+                {isMoneyMarket ? (
+                  <>Held at $1.00 NAV · earns yield through interest</>
+                ) : isFund ? (
+                  <>
+                    {positive ? '+' : '−'}
+                    {fmtMoney(Math.abs(dollarChange))} (
+                    {fmtPct(Math.abs(pctChange), { decimals: 2 })}){' '}
+                    over {fundPeriod}
+                  </>
                 ) : (
                   <>
                     {positive ? '+' : '−'}
@@ -380,13 +441,41 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
           </div>
         </div>
 
-        {/* Period selector — only meaningful for live tickers. Mutual funds
-            stay in NAV mode (90-day daily history) regardless. */}
-        {!isFund && (
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-            <p className="text-[11px] text-gray-400 uppercase tracking-wider font-medium">
-              Timeline
-            </p>
+        {/* Period selector — every chart gets one. For live tickers it
+            sets the intraday/daily resolution; for mutual funds it picks
+            the NAV-history lookback window. Money market is locked to
+            a flat line either way, but we still show the selector so
+            the UI stays consistent. */}
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider font-medium">
+            Timeline
+          </p>
+          {isFund ? (
+            <div
+              role="tablist"
+              aria-label="NAV history period"
+              className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 p-0.5"
+            >
+              {FUND_PERIOD_KEYS.map((p) => {
+                const isOn = p === fundPeriod;
+                return (
+                  <button
+                    key={p}
+                    role="tab"
+                    aria-selected={isOn}
+                    onClick={() => setFundPeriod(p)}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition tabular-nums ${
+                      isOn
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
             <div
               role="tablist"
               aria-label="Live market period"
@@ -411,8 +500,8 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* The chart itself — keyed by ticker + mode + period so a new
             MarketChart instance mounts cleanly when the user switches
@@ -430,7 +519,9 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
             livePrice here would change every 2s and remount the chart on
             every tick, which would obliterate the live ticking effect. */}
         <MarketChart
-          key={`${active}-${isFund ? 'nav' : 'live'}-${period}-${chartKind}`}
+          key={`${active}-${isFund ? 'nav' : 'live'}-${
+            isFund ? fundPeriod : period
+          }-${chartKind}`}
           ticker={active}
           basePrice={activeAnchor}
           assetClass={activeHolding.asset_class}
@@ -438,14 +529,24 @@ export function LiveMarketCard({ holdings, initialTicker }: Props) {
           mode={isFund ? 'daily-nav' : 'live'}
           height={300}
           intervalMs={2000}
-          historyBars={PERIOD_CONFIG[period].bars}
-          barSec={PERIOD_CONFIG[period].barSec}
+          historyBars={
+            isFund
+              ? FUND_PERIOD_CONFIG[fundPeriod].bars
+              : PERIOD_CONFIG[period].bars
+          }
+          barSec={
+            isFund
+              ? FUND_PERIOD_CONFIG[fundPeriod].barSec
+              : PERIOD_CONFIG[period].barSec
+          }
         />
 
         <p className="text-[10px] text-gray-400 mt-3 text-center">
-          {isFund
-            ? '90 days of NAV history. Mutual funds publish a single price per day after the market closes — no intraday ticking.'
-            : 'Movement is simulated from a random walk seeded by the ticker so the demo runs 24/7. Your live P&L on this page updates from these ticks too.'}
+          {isMoneyMarket
+            ? 'Money market funds invest in short-term cash equivalents (T-bills, repos, commercial paper). They keep their NAV pegged at $1.00 and pay yield through monthly interest distributions — not price changes.'
+            : isFund
+              ? `${fundPeriod} of daily NAV history. Mutual funds publish one price per day after the market closes — no intraday ticking.`
+              : 'Movement is simulated from a random walk seeded by the ticker so the demo runs 24/7. Your live P&L on this page updates from these ticks too.'}
         </p>
       </div>
     </div>

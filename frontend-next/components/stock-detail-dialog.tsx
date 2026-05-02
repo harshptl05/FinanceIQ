@@ -24,6 +24,7 @@ import {
   assetColor,
   tickerColor,
 } from '@/lib/format';
+import { TickerLogo } from '@/components/ticker-logo';
 
 type Props = {
   holding: Holding | null;
@@ -101,12 +102,12 @@ export function StockDetailDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
-              style={{ backgroundColor: color }}
-            >
-              {ticker[0]}
-            </div>
+            <TickerLogo
+              ticker={ticker}
+              color={color}
+              size="lg"
+              rounded="lg"
+            />
             <div className="min-w-0">
               <DialogTitle className="text-xl">{ticker}</DialogTitle>
               <p className="text-sm text-gray-500 truncate">

@@ -29,6 +29,7 @@ import {
 import { RadialBarChart } from '@/components/radial-bar-chart';
 import { CardSpinner, EmptyState } from '@/components/data-state';
 import { StockDetailDialog } from '@/components/stock-detail-dialog';
+import { TickerLogo } from '@/components/ticker-logo';
 
 type Period = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 type ProfitPeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
@@ -468,12 +469,12 @@ export function InvestmentTab({ data }: { data: PortfolioData }) {
                   className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                      style={{ backgroundColor: asset.color }}
-                    >
-                      {asset.ticker[0]}
-                    </div>
+                    <TickerLogo
+                      ticker={asset.ticker}
+                      color={asset.color}
+                      size="md"
+                      rounded="lg"
+                    />
                     <div className="min-w-0">
                       <p className="font-semibold text-sm truncate">
                         {asset.ticker}
@@ -819,12 +820,12 @@ function TopMovers({
               onClick={() => onSelect(stock.ticker)}
               className="flex items-center gap-3 shrink-0 hover:scale-[1.03] transition-transform cursor-pointer"
             >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                style={{ backgroundColor: stock.color }}
-              >
-                {stock.ticker[0]}
-              </div>
+              <TickerLogo
+                ticker={stock.ticker}
+                color={stock.color}
+                size="md"
+                rounded="full"
+              />
               <div className="text-left">
                 <p className="font-semibold text-sm">{stock.ticker}</p>
                 <div className="flex items-center gap-2">

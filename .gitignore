@@ -14,9 +14,11 @@ next.user-config.*
 # Common ignores
 node_modules/
 .next/
+.turbo/
 dist/
 .vite/
 .DS_Store
+*.tsbuildinfo
 
 # Python
 __pycache__/

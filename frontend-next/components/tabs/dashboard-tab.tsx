@@ -14,10 +14,13 @@ import {
   Loader2,
   ExternalLink,
 } from 'lucide-react';
+import { useMemo } from 'react';
 import type { PortfolioData } from '@/hooks/use-portfolio-data';
 import { useAuth } from '@/lib/auth-context';
-import { fmtMoney, fmtPct, relativeTime } from '@/lib/format';
+import { fmtMoney, fmtPct, holdingColorMap, relativeTime } from '@/lib/format';
 import { EmptyState } from '@/components/data-state';
+import { MarketPulseCard } from '@/components/market-pulse-card';
+import { TickerLogo } from '@/components/ticker-logo';
 import { toast } from 'sonner';
 
 function greeting() {
@@ -69,6 +72,8 @@ export function DashboardTab({ data }: { data: PortfolioData }) {
     const cost = Number(h.shares ?? 0) * Number(h.avg_cost_basis ?? 0);
     return acc + (cv - cost);
   }, 0);
+
+  const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
 
   const handleSync = async () => {
     if (syncing) return;
@@ -215,9 +220,9 @@ export function DashboardTab({ data }: { data: PortfolioData }) {
         </div>
       )}
 
-      {/* Recent activity (alerts + recommendations) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+      {/* Recent activity (alerts + recommendations) + Market Pulse + Quick actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-6 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold">Recent activity</h2>
             <span className="text-[11px] text-gray-400">
@@ -232,28 +237,40 @@ export function DashboardTab({ data }: { data: PortfolioData }) {
             />
           ) : (
             <div className="space-y-3">
-              {alerts.slice(0, 4).map((a) => (
+              {alerts.slice(0, 4).map((a) => {
+                const primaryTicker =
+                  (a.affected_holdings ?? []).find((t) => colorMap[t]) ??
+                  (a.affected_holdings ?? [])[0];
+                return (
                 <div
                   key={a.id}
                   className="flex items-start gap-3 py-3 border-b border-gray-50 last:border-0"
                 >
-                  <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      a.impact_classification === 'positive'
-                        ? 'bg-green-50'
-                        : a.impact_classification === 'negative'
-                          ? 'bg-rose-50'
-                          : 'bg-blue-50'
-                    }`}
-                  >
-                    {a.impact_classification === 'positive' ? (
-                      <TrendingUp className="w-5 h-5 text-green-600" />
-                    ) : a.impact_classification === 'negative' ? (
-                      <TrendingDown className="w-5 h-5 text-rose-500" />
-                    ) : (
-                      <Bell className="w-5 h-5 text-blue-600" />
-                    )}
-                  </div>
+                  {primaryTicker ? (
+                    <TickerLogo
+                      ticker={primaryTicker}
+                      color={colorMap[primaryTicker] ?? '#6366F1'}
+                      size="md"
+                    />
+                  ) : (
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        a.impact_classification === 'positive'
+                          ? 'bg-green-50'
+                          : a.impact_classification === 'negative'
+                            ? 'bg-rose-50'
+                            : 'bg-blue-50'
+                      }`}
+                    >
+                      {a.impact_classification === 'positive' ? (
+                        <TrendingUp className="w-5 h-5 text-green-600" />
+                      ) : a.impact_classification === 'negative' ? (
+                        <TrendingDown className="w-5 h-5 text-rose-500" />
+                      ) : (
+                        <Bell className="w-5 h-5 text-blue-600" />
+                      )}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm">
@@ -290,7 +307,8 @@ export function DashboardTab({ data }: { data: PortfolioData }) {
                     <p className="text-xs text-gray-400">{relativeTime(a.created_at)}</p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               {recommendations.slice(0, 2).map((r) => (
                 <div
@@ -317,7 +335,12 @@ export function DashboardTab({ data }: { data: PortfolioData }) {
           )}
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+        <MarketPulseCard
+          holdings={holdings}
+          className="lg:col-span-3"
+        />
+
+        <div className="lg:col-span-3 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
           <h2 className="font-semibold mb-4">Quick actions</h2>
           <div className="grid grid-cols-2 gap-3">
             <button

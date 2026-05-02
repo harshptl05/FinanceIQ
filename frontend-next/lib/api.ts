@@ -49,6 +49,21 @@ export type NewsEvent = {
   processed_at?: string | null;
 };
 
+export type PulseItem = {
+  id: string;
+  impact: 'positive' | 'negative' | 'neutral';
+  urgency?: 'act_now' | 'act_soon' | 'monitor' | 'info_only' | null;
+  affected_holdings: string[];
+  dollar_impact?: number | null;
+  explanation?: string | null;
+  read: boolean;
+  created_at: string;
+  headline?: string | null;
+  source?: string | null;
+  url?: string | null;
+  published_at?: string | null;
+};
+
 export type Recommendation = {
   id: string;
   goal_id?: string | null;
@@ -244,6 +259,8 @@ export const api = {
     refresh: () => post<unknown>('/news/refresh', {}),
     recent: (limit = 20) =>
       get<{ news: NewsEvent[] }>(`/news/recent?limit=${limit}`),
+    pulse: (limit = 6) =>
+      get<{ pulse: PulseItem[] }>(`/news/pulse?limit=${limit}`),
     status: () =>
       get<{
         last_event_time: string | null;

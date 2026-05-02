@@ -13,8 +13,9 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import type { PortfolioData } from '@/hooks/use-portfolio-data';
-import { fmtMoney, relativeTime } from '@/lib/format';
+import { fmtMoney, holdingColorMap, relativeTime } from '@/lib/format';
 import { EmptyState } from '@/components/data-state';
+import { TickerLogo } from '@/components/ticker-logo';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -28,7 +29,8 @@ function urgencyClass(u?: string | null) {
 }
 
 export function ActivityTab({ data }: { data: PortfolioData }) {
-  const { alerts, news, refresh } = data;
+  const { alerts, news, refresh, holdings } = data;
+  const colorMap = useMemo(() => holdingColorMap(holdings), [holdings]);
   const [filter, setFilter] = useState<Filter>('all');
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -191,6 +193,9 @@ export function ActivityTab({ data }: { data: PortfolioData }) {
                 const a = item.data;
                 const positive = a.impact_classification === 'positive';
                 const negative = a.impact_classification === 'negative';
+                const primaryTicker =
+                  (a.affected_holdings ?? []).find((t) => colorMap[t]) ??
+                  (a.affected_holdings ?? [])[0];
                 return (
                   <div
                     key={`a-${a.id}`}
@@ -198,23 +203,32 @@ export function ActivityTab({ data }: { data: PortfolioData }) {
                       a.read ? '' : 'bg-amber-50/40'
                     }`}
                   >
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                        positive
-                          ? 'bg-green-50'
-                          : negative
-                            ? 'bg-rose-50'
-                            : 'bg-blue-50'
-                      }`}
-                    >
-                      {positive ? (
-                        <TrendingUp className="w-6 h-6 text-green-600" />
-                      ) : negative ? (
-                        <TrendingDown className="w-6 h-6 text-rose-500" />
-                      ) : (
-                        <Bell className="w-6 h-6 text-blue-600" />
-                      )}
-                    </div>
+                    {primaryTicker ? (
+                      <TickerLogo
+                        ticker={primaryTicker}
+                        color={colorMap[primaryTicker] ?? '#6366F1'}
+                        size="lg"
+                        rounded="lg"
+                      />
+                    ) : (
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                          positive
+                            ? 'bg-green-50'
+                            : negative
+                              ? 'bg-rose-50'
+                              : 'bg-blue-50'
+                        }`}
+                      >
+                        {positive ? (
+                          <TrendingUp className="w-6 h-6 text-green-600" />
+                        ) : negative ? (
+                          <TrendingDown className="w-6 h-6 text-rose-500" />
+                        ) : (
+                          <Bell className="w-6 h-6 text-blue-600" />
+                        )}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold">

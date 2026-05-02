@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "cd frontend-next && npm install --no-audit --no-fund && npm run build",
-  "installCommand": "echo no-op (install handled inside frontend-next)",
+  "installCommand": "echo skip-root-install",
   "outputDirectory": "frontend-next/.next"
 }

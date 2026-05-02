@@ -198,14 +198,14 @@ export function PortfolioValueChart({
                 dataKey="label"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
+                tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
                 interval="preserveStartEnd"
                 minTickGap={40}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#9CA3AF', fontSize: 11 }}
+                tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }}
                 tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
               />
               <Tooltip content={<CustomTooltip />} />

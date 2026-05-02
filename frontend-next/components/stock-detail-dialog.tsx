@@ -398,14 +398,14 @@ export function StockDetailDialog({
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#9CA3AF', fontSize: 11 }}
+                  tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }}
                   interval="preserveStartEnd"
                   minTickGap={40}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#9CA3AF', fontSize: 11 }}
+                  tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }}
                   tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
                   width={50}
                 />

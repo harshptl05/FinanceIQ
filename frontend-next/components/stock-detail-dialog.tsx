@@ -187,8 +187,11 @@ export function StockDetailDialog({
             {/* Quick trade controls — visible on every detail dialog so a buy
                 or sell is always one tap away, no menu hunting. Sell is
                 hidden when the user doesn't actually own this ticker
-                (i.e. opened from search). */}
-            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mt-1">
+                (i.e. opened from search).
+                The mr-8 reserves room for the dialog's absolute-positioned
+                close (X) button which sits at top-4 right-4 — without it
+                the X would sit on top of the Sell pill. */}
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mt-1 mr-8">
               <button
                 type="button"
                 onClick={() => {

@@ -233,7 +233,10 @@ export function TickerPreviewDialog({
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto text-[11px] text-gray-400 hover:text-gray-600 inline-flex items-center gap-1"
+                    /* mr-7 reserves room for the dialog's absolute X
+                       close button (top-4 right-4) so this link
+                       doesn't sit underneath it. */
+                    className="ml-auto mr-7 text-[11px] text-gray-400 hover:text-gray-600 inline-flex items-center gap-1"
                   >
                     Yahoo <ExternalLink className="w-3 h-3" />
                   </a>

@@ -153,9 +153,8 @@ export function StockDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* showCloseButton={false} disables the tiny default X we used to
-          fight with `mr-8`. We render our own circular close button below
-          — it sits in its own corner so it never overlaps Buy/Sell. */}
+      {/* showCloseButton={false}: custom round close top-right. Buy/Sell are on a
+          separate row below the title so they never share the same band as the X. */}
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         showCloseButton={false}
@@ -164,13 +163,14 @@ export function StockDetailDialog({
           <button
             type="button"
             aria-label="Close"
-            className="absolute top-3 right-3 z-20 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition focus:outline-hidden focus:ring-2 focus:ring-gray-300"
+            className="absolute top-4 right-4 z-30 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition focus:outline-hidden focus:ring-2 focus:ring-gray-300"
           >
             <X className="w-4 h-4" />
           </button>
         </DialogClose>
         <DialogHeader>
-          <div className="flex items-start gap-3">
+          {/* Title row — pr keeps long headings clear of the absolute close */}
+          <div className="flex items-start gap-3 pr-12 sm:pr-14">
             <TickerLogo
               ticker={ticker}
               color={color}
@@ -201,39 +201,33 @@ export function StockDetailDialog({
                 </span>
               </p>
             </div>
-            {/* Quick trade controls — visible on every detail dialog so a buy
-                or sell is always one tap away, no menu hunting. Sell is
-                hidden when the user doesn't actually own this ticker
-                (i.e. opened from search).
-                The trailing mr-12 keeps the buttons clear of the custom
-                circular close button at top-3 right-3 — gives the X its
-                own corner so it never visually clashes. */}
-            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mt-1 mr-12">
+          </div>
+          {/* Desktop/tablet: trade actions on their own row — below the close control */}
+          <div className="hidden sm:flex justify-end gap-1.5 mt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setTradeAction('buy');
+                setTradeOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+            >
+              <ArrowDownToLine className="w-3.5 h-3.5" />
+              Buy
+            </button>
+            {Number(holding.shares ?? 0) > 0 && (
               <button
                 type="button"
                 onClick={() => {
-                  setTradeAction('buy');
+                  setTradeAction('sell');
                   setTradeOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 transition"
               >
-                <ArrowDownToLine className="w-3.5 h-3.5" />
-                Buy
+                <ArrowUpFromLine className="w-3.5 h-3.5" />
+                Sell
               </button>
-              {Number(holding.shares ?? 0) > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTradeAction('sell');
-                    setTradeOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 transition"
-                >
-                  <ArrowUpFromLine className="w-3.5 h-3.5" />
-                  Sell
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </DialogHeader>
 

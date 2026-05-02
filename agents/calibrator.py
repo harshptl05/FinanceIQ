@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from core.database import get_db
 from core.logger import get_logger
 
@@ -75,6 +75,46 @@ async def run_calibration() -> None:
     logger.info("Calibration run complete")
 
 
+async def process_rebalance_reminders() -> None:
+    db = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    resp = (
+        db.table("rebalancing_recommendations")
+        .select("*")
+        .eq("status", "pending")
+        .lte("remind_at", now)
+        .execute()
+    )
+    for rec in resp.data or []:
+        if not rec.get("remind_at"):
+            continue
+        alert = {
+            "user_id": rec["user_id"],
+            "impact_classification": "neutral",
+            "affected_holdings": [],
+            "estimated_dollar_impact": None,
+            "plain_english_explanation": (
+                "Reminder: you asked us to nudge you about rebalancing. "
+                "Your recommendation is still open — review it on the Rebalance page."
+            ),
+            "action_required": True,
+            "urgency": "act_soon",
+            "read": False,
+        }
+        try:
+            db.table("portfolio_alerts").insert(alert).execute()
+            db.table("rebalancing_recommendations").update({"remind_at": None}).eq(
+                "id", rec["id"]
+            ).execute()
+            logger.info(
+                f"Rebalance reminder for user {rec['user_id']} rec {rec['id']}"
+            )
+        except Exception as e:
+            logger.error(
+                f"process_rebalance_reminders failed for {rec.get('id')}: {e}"
+            )
+
+
 async def run() -> None:
     _status["running"] = True
     logger.info("CalibrationAgent started")
@@ -88,6 +128,7 @@ async def run() -> None:
             ) % 86400
             await asyncio.sleep(max(next_run_seconds, 60))
             await run_calibration()
+            await process_rebalance_reminders()
             _status["error"] = None
         except Exception as e:
             _status["error"] = str(e)

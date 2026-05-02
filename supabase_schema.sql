@@ -70,7 +70,9 @@ CREATE TABLE rebalancing_recommendations (
   tax_loss_harvesting_opportunity BOOLEAN DEFAULT FALSE,
   tax_notes TEXT,
   status TEXT CHECK (status IN ('pending', 'acknowledged', 'acted', 'dismissed')) DEFAULT 'pending',
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  remind_at TIMESTAMPTZ,
+  trade_instructions JSONB
 );
 
 CREATE TABLE news_events (

@@ -109,9 +109,29 @@ export type PulseItem = {
   published_at?: string | null;
 };
 
+export type TradeInstruction = {
+  ticker: string;
+  name: string;
+  action: string;
+  amount_dollars: number;
+  steps: string[];
+  plain_english_why: string;
+  timing_note: string | null;
+  mutual_fund_note: string | null;
+};
+
+export type ApplyRebalanceResult = {
+  status: string;
+  total_value: number;
+  allocation: Record<string, number>;
+  strategy_note: string;
+  updated_holdings: number;
+};
+
 export type Recommendation = {
   id: string;
   goal_id?: string | null;
+  goal_name?: string | null;
   trigger_type?: string | null;
   trigger_description?: string | null;
   current_allocation?: Record<string, number> | null;
@@ -128,6 +148,8 @@ export type Recommendation = {
   tax_loss_harvesting_opportunity?: boolean | null;
   tax_notes?: string | null;
   status?: string | null;
+  remind_at?: string | null;
+  trade_instructions?: TradeInstruction[] | null;
   created_at: string;
 };
 
@@ -298,8 +320,17 @@ export const api = {
       get<{ recommendations: Recommendation[] }>('/rebalancing/recommendations'),
     trigger: () =>
       post<{ recommendations: Recommendation[] }>('/rebalancing/trigger', {}),
-    updateStatus: (id: string, status: string) =>
-      put<unknown>(`/rebalancing/${id}/status`, { status }),
+    updateStatus: (
+      id: string,
+      body: { status: string; remind_at?: string | null },
+    ) => put<unknown>(`/rebalancing/${id}/status`, body),
+    generateInstructions: (id: string) =>
+      post<{ instructions: TradeInstruction[] }>(
+        `/rebalancing/${id}/generate-instructions`,
+        {},
+      ),
+    apply: (id: string) =>
+      post<ApplyRebalanceResult>(`/rebalancing/${id}/apply`, {}),
     calibrationStats: () =>
       get<CalibrationStats>('/rebalancing/calibration/stats'),
   },

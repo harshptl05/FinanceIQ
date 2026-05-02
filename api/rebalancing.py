@@ -1,9 +1,72 @@
+import json
+import re
+from datetime import date, datetime, timezone
+
+import anthropic
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
+
+from core.config import settings
 from core.database import get_db
-from financial.rebalancing_math import generate_recommendation
+from data.market_data import get_price
+from financial.rebalance_apply import (
+    build_strategy_rationale,
+    plan_rebalance_updates,
+)
+from financial.rebalancing_math import calculate_current_allocation, generate_recommendation
 
 router = APIRouter()
+
+CLAUDE_MODEL = "claude-sonnet-4-20250514"
+
+DEFAULT_TICKER_BY_CLASS = {
+    "us_stocks": "VTI",
+    "intl_stocks": "VXUS",
+    "bonds": "BND",
+    "cash": "VMFXX",
+    "real_estate": "VNQ",
+    "commodities": "GLD",
+    "other": "VTI",
+}
+
+INSTRUCTION_PROMPT = """You are helping an everyday investor execute rebalancing trades in their brokerage account.
+
+RECOMMENDED TRADES:
+{trades_json}
+
+USER PORTFOLIO CONTEXT:
+{portfolio_context}
+
+For each trade, write clear step-by-step instructions a non-investor can follow in any standard brokerage (Fidelity, Vanguard, Schwab, etc.).
+
+Respond with ONLY a JSON array, no other text:
+[
+  {{
+    "ticker": "BND",
+    "name": "Vanguard Total Bond Market ETF",
+    "action": "buy",
+    "amount_dollars": 23079.64,
+    "steps": [
+      "Log into your brokerage account",
+      "Search for 'BND' or 'Vanguard Total Bond Market ETF' in the search bar",
+      "Click 'Trade' or 'Buy'",
+      "Select 'Dollar amount' instead of 'Number of shares'",
+      "Enter $23,079.64 as the amount",
+      "Select 'Market order' for the order type",
+      "Review the order and confirm"
+    ],
+    "plain_english_why": "Buying bonds brings your portfolio back to your target allocation and reduces your overall risk as you approach your retirement goal.",
+    "timing_note": "Best executed during market hours (9:30am - 4pm EST Monday-Friday)",
+    "mutual_fund_note": null
+  }}
+]
+
+Rules:
+- Steps must be specific and actionable for any major brokerage
+- plain_english_why must reference their specific goal, never generic advice
+- If the holding is a mutual_fund, set mutual_fund_note to: 'This is a mutual fund — your order will execute at the end-of-day NAV price (4pm EST), not immediately'
+- Never use jargon without explaining it
+- Keep steps to 5-7 maximum per trade"""
 
 
 def _get_user_id(authorization: str | None) -> str:
@@ -19,6 +82,76 @@ def _get_user_id(authorization: str | None) -> str:
 
 class StatusUpdate(BaseModel):
     status: str
+    remind_at: str | None = None
+
+
+def _extract_json_array(text: str) -> list:
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```[a-zA-Z]*\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+    return json.loads(raw)
+
+
+def _enrich_trades_for_prompt(trades: list, holdings: list, goal_name: str) -> list:
+    out = []
+    for t in trades:
+        ac = t.get("asset_class")
+        ticker = (t.get("ticker") or "").strip().upper() or None
+        if not ticker:
+            ticker = DEFAULT_TICKER_BY_CLASS.get(ac or "", "VTI")
+        name = ticker
+        for h in holdings:
+            if (ticker and h.get("ticker") == ticker) or (
+                ac and h.get("asset_class") == ac
+            ):
+                name = h.get("name") or h.get("ticker") or ticker
+                break
+        row = {
+            "ticker": ticker,
+            "name": name,
+            "action": t.get("action"),
+            "amount_dollars": float(t.get("amount") or 0),
+            "asset_class": ac,
+            "reason": t.get("reason"),
+            "goal_name": goal_name,
+        }
+        if holdings:
+            for h in holdings:
+                if h.get("ticker") == ticker:
+                    row["is_mutual_fund"] = bool(h.get("is_mutual_fund"))
+                    break
+        out.append(row)
+    return out
+
+
+def _build_portfolio_context(
+    goal: dict | None,
+    holdings: list,
+    profile: dict | None,
+    total_value: float,
+) -> dict:
+    ctx = {
+        "total_portfolio_value": round(total_value, 2),
+        "goal_name": goal.get("goal_name") if goal else None,
+        "goal_type": goal.get("goal_type") if goal else None,
+        "rebalancing_strategy": goal.get("rebalancing_strategy") if goal else None,
+        "rebalancing_threshold": goal.get("rebalancing_threshold") if goal else None,
+        "rebalancing_frequency": goal.get("rebalancing_frequency") if goal else None,
+        "account_type": goal.get("account_type") if goal else None,
+        "risk_tolerance": profile.get("risk_tolerance") if profile else None,
+        "primary_holdings": [
+            {
+                "ticker": h.get("ticker"),
+                "name": h.get("name"),
+                "asset_class": h.get("asset_class"),
+                "current_value": float(h.get("current_value") or 0),
+                "is_mutual_fund": bool(h.get("is_mutual_fund")),
+            }
+            for h in holdings[:12]
+        ],
+    }
+    return ctx
 
 
 @router.get("/recommendations")
@@ -80,8 +213,6 @@ def trigger_rebalancing(authorization: str | None = Header(default=None)):
             skipped += 1
             continue
 
-        # Only insert if there isn't already a pending recommendation for
-        # this goal — otherwise "Re-check now" would pile up duplicates.
         existing = (
             db.table("rebalancing_recommendations")
             .select("id")
@@ -94,8 +225,6 @@ def trigger_rebalancing(authorization: str | None = Header(default=None)):
             persisted.append(existing.data[0])
             continue
 
-        # Friendly labels for the asset class keys so the explanation reads
-        # naturally instead of leaking raw db keys like "us_stocks".
         ASSET_LABELS = {
             "us_stocks": "US stocks",
             "intl_stocks": "Intl stocks",
@@ -156,14 +285,207 @@ def update_recommendation_status(
 ):
     user_id = _get_user_id(authorization)
     db = get_db()
+    payload = body.model_dump(exclude_unset=True)
     resp = (
         db.table("rebalancing_recommendations")
-        .update({"status": body.status})
+        .update(payload)
         .eq("id", rec_id)
         .eq("user_id", user_id)
         .execute()
     )
     return resp.data[0] if resp.data else {}
+
+
+@router.post("/{rec_id}/generate-instructions")
+def generate_trade_instructions(
+    rec_id: str, authorization: str | None = Header(default=None)
+):
+    if not settings.anthropic_api_key:
+        raise HTTPException(status_code=503, detail="AI instructions unavailable")
+
+    user_id = _get_user_id(authorization)
+    db = get_db()
+    rec_resp = (
+        db.table("rebalancing_recommendations")
+        .select("*")
+        .eq("id", rec_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not rec_resp.data:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    rec = rec_resp.data[0]
+
+    trades = rec.get("recommended_trades") or []
+    if isinstance(trades, str):
+        trades = json.loads(trades)
+
+    holdings_resp = db.table("holdings").select("*").eq("user_id", user_id).execute()
+    holdings = holdings_resp.data or []
+
+    goal = None
+    if rec.get("goal_id"):
+        g_resp = (
+            db.table("goals").select("*").eq("id", rec["goal_id"]).execute()
+        )
+        goal = (g_resp.data or [None])[0]
+
+    profile_resp = db.table("user_profiles").select("*").eq("id", user_id).execute()
+    profile = profile_resp.data[0] if profile_resp.data else {}
+
+    total_value = sum(float(h.get("current_value", 0)) for h in holdings)
+    goal_name = goal.get("goal_name") if goal else "your portfolio"
+
+    enriched = _enrich_trades_for_prompt(trades, holdings, goal_name)
+    portfolio_context = json.dumps(
+        _build_portfolio_context(goal, holdings, profile, total_value), indent=2
+    )
+    trades_json = json.dumps(enriched, indent=2)
+
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    msg = client.messages.create(
+        model=CLAUDE_MODEL,
+        max_tokens=8192,
+        messages=[
+            {
+                "role": "user",
+                "content": INSTRUCTION_PROMPT.format(
+                    trades_json=trades_json, portfolio_context=portfolio_context
+                ),
+            }
+        ],
+    )
+    text = msg.content[0].text
+    try:
+        instructions = _extract_json_array(text)
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not parse AI response as JSON: {e}",
+        ) from e
+
+    db.table("rebalancing_recommendations").update(
+        {"trade_instructions": instructions}
+    ).eq("id", rec_id).eq("user_id", user_id).execute()
+
+    return {"instructions": instructions}
+
+
+@router.post("/{rec_id}/apply")
+async def apply_rebalanced_allocation(
+    rec_id: str, authorization: str | None = Header(default=None)
+):
+    user_id = _get_user_id(authorization)
+    db = get_db()
+
+    rec_resp = (
+        db.table("rebalancing_recommendations")
+        .select("*")
+        .eq("id", rec_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not rec_resp.data:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    rec = rec_resp.data[0]
+
+    ta = rec.get("target_allocation") or {}
+    if isinstance(ta, str):
+        ta = json.loads(ta)
+    if not ta:
+        raise HTTPException(status_code=400, detail="No target allocation on recommendation")
+
+    goal_id = rec.get("goal_id")
+    holdings_resp = db.table("holdings").select("*").eq("user_id", user_id).execute()
+    holdings = holdings_resp.data or []
+
+    updates, inserts = plan_rebalance_updates(holdings, ta, goal_id)
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    for u in updates:
+        uid = u["id"]
+        payload = {
+            "shares": u["shares"],
+            "current_value": u["current_value"],
+            "last_updated": now_iso,
+        }
+        if u.get("current_price"):
+            payload["current_price"] = u["current_price"]
+        db.table("holdings").update(payload).eq("id", uid).eq("user_id", user_id).execute()
+
+    for ins in inserts:
+        ticker = ins["ticker"].upper()
+        target_val = float(ins["target_value"])
+        price = float(await get_price(ticker) or 0)
+        if price <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not price {ticker} for simulated rebalance.",
+            )
+        shares = target_val / price
+        insert_payload = {
+            "user_id": user_id,
+            "ticker": ticker,
+            "name": ticker,
+            "asset_class": ins["asset_class"],
+            "shares": round(shares, 6),
+            "avg_cost_basis": round(price, 4),
+            "current_price": round(price, 4),
+            "current_value": round(shares * price, 2),
+            "goal_id": ins.get("goal_id"),
+            "last_updated": now_iso,
+        }
+        try:
+            db.table("holdings").insert(insert_payload).execute()
+        except Exception:
+            insert_payload.pop("goal_id", None)
+            db.table("holdings").insert(insert_payload).execute()
+
+    holdings_resp2 = db.table("holdings").select("*").eq("user_id", user_id).execute()
+    holdings2 = holdings_resp2.data or []
+
+    dead_ids = [
+        h["id"]
+        for h in holdings2
+        if float(h.get("current_value") or 0) <= 0.01
+        and float(h.get("shares") or 0) <= 1e-6
+    ]
+    for hid in dead_ids:
+        db.table("holdings").delete().eq("id", hid).eq("user_id", user_id).execute()
+
+    holdings_resp3 = db.table("holdings").select("*").eq("user_id", user_id).execute()
+    holdings3 = holdings_resp3.data or []
+    total_value = sum(float(h.get("current_value", 0)) for h in holdings3)
+    allocation = calculate_current_allocation(holdings3)
+
+    db.table("portfolio_snapshots").insert(
+        {
+            "user_id": user_id,
+            "total_value": round(total_value, 2),
+            "allocation": allocation,
+            "snapshot_date": date.today().isoformat(),
+        }
+    ).execute()
+
+    goal = None
+    if goal_id:
+        g_resp = db.table("goals").select("*").eq("id", goal_id).execute()
+        goal = (g_resp.data or [None])[0]
+
+    strategy_note = build_strategy_rationale(goal)
+
+    db.table("rebalancing_recommendations").update({"status": "acted"}).eq(
+        "id", rec_id
+    ).eq("user_id", user_id).execute()
+
+    return {
+        "status": "acted",
+        "total_value": round(total_value, 2),
+        "allocation": allocation,
+        "strategy_note": strategy_note,
+        "updated_holdings": len(updates) + len(inserts),
+    }
 
 
 @router.get("/calibration/stats")

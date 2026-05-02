@@ -53,6 +53,7 @@ import { useAuth } from '@/lib/auth-context';
 import type { PortfolioData } from '@/hooks/use-portfolio-data';
 import { fmtMoney, fmtPct, initials } from '@/lib/format';
 import { toast } from 'sonner';
+import { VoiceAgentPanel } from '@/components/voice-agent-panel';
 
 // ---------- TIME MACHINE ----------
 
@@ -893,6 +894,24 @@ export function AITab({ data }: { data: PortfolioData }) {
       {/* Workspace */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto pr-2" ref={scrollRef}>
+          {panel === 'home' && (
+            <VoiceAgentPanel
+              className="mb-6"
+              onAction={(tool) => {
+                // The voice agent just mutated the user's portfolio (rebalance,
+                // contribute, create_goal, mark_alerts_read). Refresh the
+                // dashboard data so the change shows up instantly.
+                void data.refresh();
+                if (tool === 'rebalance_portfolio') {
+                  toast.success('Voice agent rebalanced your portfolio.');
+                } else if (tool === 'contribute_to_goal') {
+                  toast.success('Contribution recorded by voice.');
+                } else if (tool === 'create_goal') {
+                  toast.success('New goal added by voice.');
+                }
+              }}
+            />
+          )}
           {panel === 'insights' ? (
             <InsightsPanel
               data={data}
